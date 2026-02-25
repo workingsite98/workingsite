@@ -59,7 +59,37 @@ if(logoutBtn) {
   const newMsgBtn = document.getElementById("newMsgBtn");
 
   /* ================= HELPERS ================= */
-  function getTopVisibleMessage() {
+// ✅ WhatsApp style: viewport me message visible hone pe seen mark
+function markMessagesSeen() {
+  const messages = chat.querySelectorAll(".message-row:not(.seen)");
+  messages.forEach(msg => {
+    const rect = msg.getBoundingClientRect();
+    const chatRect = chat.getBoundingClientRect();
+
+    if (rect.top < chatRect.bottom && rect.bottom > chatRect.top) {
+      const id = msg.dataset.id;
+      if (!id) return;
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "seen", msgId: id, room: "public" }));
+      }
+
+      msg.classList.add("seen"); // client side prevent double marking
+    }
+  });
+}
+
+// scroll event pe call karo
+chat.addEventListener("scroll", () => {
+  markMessagesSeen();
+});
+
+// aur page load ke time pe bhi check kar lo
+document.addEventListener("DOMContentLoaded", () => {
+  markMessagesSeen();
+}); 
+
+ function getTopVisibleMessage() {
     const messages = chat.children;
     if (!messages.length) return null;
 
@@ -137,21 +167,13 @@ if(logoutBtn) {
 
     div.className = (isMe ? "message sent" : "message received") + (isGrouped ? " grouped" : " new-group");
 
-if (!isMe) {
-    const avatarEl = document.createElement("img");
-    avatarEl.className = "avatar";
-
-    if (avatar) {
-        avatarEl.src = avatar;
-        avatarEl.onerror = () => { avatarEl.src = "/default-avatar.png"; };
+    if (!isGrouped && avatar) {
+      const avatarEl = document.createElement("img");
+      avatarEl.className = "avatar";
+      avatarEl.src = avatar;
+      avatarEl.onerror = () => { avatarEl.src = "/default-avatar.png"; };
+      wrapper.appendChild(avatarEl);
     }
-
-    if (isGrouped) {
-        avatarEl.classList.add("avatar-placeholder");
-    }
-
-    wrapper.appendChild(avatarEl);
-}
 
     if (!isGrouped) {
       const nameEl = document.createElement("div");
@@ -277,24 +299,26 @@ if (!isMe) {
     });
   }
 function setStatusVisual(statusEl, state) {
-  const small = statusEl.querySelector(".tick.small");
-  const big = statusEl.querySelector(".tick.big");
+    const small = statusEl.querySelector(".tick.small");
+    const big = statusEl.querySelector(".tick.big");
 
-  // Dono ticks ko pehle hide karna
-  small.classList.add("hidden");
-  big.classList.add("hidden");
+    // Dono ticks ko pehle hide karo
+    small.classList.add("hidden");
+    big.classList.add("hidden");
 
-  // Agar message delivered hai, toh small tick ko dikhana
-  if (state === "delivered") {
-    small.classList.remove("hidden");
-    small.style.opacity = "1";  // Small tick ko visible karte hain
-  }
+    // Agar message delivered hai, small tick dikhao
+    if (state === "delivered") {
+        small.classList.remove("hidden");
+        small.style.opacity = "1";
+    }
 
-  // Agar message seen hai, toh big tick ko dikhana
-  if (state === "seen") {
-    big.classList.remove("hidden");
-    big.style.opacity = "1";  // Big tick ko visible karte hain
-  }
+    // Agar message seen hai, dono ticks dikhao
+    if (state === "seen") {
+        small.classList.remove("hidden");
+        big.classList.remove("hidden");
+        small.style.opacity = "1";
+        big.style.opacity = "1";
+    }
 }
 
 function updateMessageStatus(msgId, state) {
@@ -306,38 +330,6 @@ function updateMessageStatus(msgId, state) {
 
   setStatusVisual(statusEl, state); // Update the tick based on the status
 }
-
-function sendMessage() {
-  const text = input.value.trim();
-  if (!text) return; // Agar input empty hai, toh kuch mat bhejo
-
-  if (!ws || ws.readyState !== WebSocket.OPEN) return; // Agar WebSocket open nahi hai, toh kuch mat bhejo
-
-  // Unique message ID generate kar rahe hain
-  const messageID = Date.now();  // Yeh unique ID hai har message ke liye
-
-  // Message ko WebSocket ke through send karte hain
-  ws.send(JSON.stringify({
-    type: "chat",
-    room: "public",
-    text: text,
-    messageId: messageID  // Yeh ID message ke sath bhej rahe hain
-  }));
-
-  // Message ko "delivered" status dene ke liye
-  updateMessageStatus(messageID, 'delivered');  // Small tick show hoga
-
-  input.value = ""; // Input field ko clear karte hain
-}
-
- /* function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ type: "chat", room: "public", text }));
-    input.value = "";
-  updateMessageStatus(messageID, 'delivered');
-  }*/
 
   sendBtn.addEventListener("click", sendMessage);
   input.addEventListener("keydown", e => { if(e.key === "Enter") sendMessage(); });
@@ -369,11 +361,25 @@ if (data.type === "me") {
       addMessage(data.msg.user, data.msg.text, false, data.msg.time, data.msg._id, data.msg.reactions, data.msg.status || "server", data.msg.avatar);
       updateMessageStatus(data.msg._id, 'seen');
    }*/
-if (data.type === "chat") {
+/*if (data.type === "chat") {
     // Jab message aata hai, tum use add karte ho aur status ko "seen" mark karte ho
     addMessage(data.msg.user, data.msg.text, false, data.msg.time, data.msg._id, data.msg.reactions, data.msg.status || "server", data.msg.avatar);
     updateMessageStatus(data.msg._id, 'seen');  // Message ko "seen" mark kar rahe hain
-  }
+  }*/
+if (data.type === "chat") {
+    addMessage(
+        data.msg.user,
+        data.msg.text,
+        false,
+        data.msg.time,
+        data.msg._id,
+        data.msg.reactions,
+        data.msg.status || "server",
+        data.msg.avatar
+    );
+    // ✅ Abhi yahan seen nahi mark karenge
+    // updateMessageStatus(data.msg._id, 'seen');  // COMMENTED OUT
+}
 
     if (data.type === "chat-update") updateMessage(data.msg);
     if (data.type === "status-update") updateMessageStatus(data.msgId, data.state);

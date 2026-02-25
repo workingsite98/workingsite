@@ -158,6 +158,7 @@ body {
 .chat-bg {
   height: 100%;
   width: 100%;
+  position: relative;   /* 🔥 IMPORTANT */
 }
 
 /* ===== CHAT ===== */
@@ -585,6 +586,9 @@ body {
   flex-shrink: 0;
   margin-bottom: 2px; /* ✨ aligns with bubble bottom */
 }
+.avatar-placeholder {
+  visibility: hidden;
+}
 .menu {
   position: relative;
   cursor: pointer;
@@ -630,4 +634,58 @@ body {
   gap: 3px; /* icon aur text ke beech gap */
   font-weight:900;
 }
+#newMsgBtn {
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  background: #2dd4bf;
+  color: #001414;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  transition: all 0.2s ease;
+  z-index: 20;
+}
 
+#newMsgBtn:hover {
+  transform: translateX(-50%) scale(1.05);
+}
+/* ===== WhatsApp Style Avatar Logic ===== */
+
+/* Default avatar hidden */
+/*.message-row .avatar {
+  visibility: hidden;
+}*/
+
+/* Sirf first message of group me avatar visible */
+/*.message-row.new-group .avatar {
+  visibility: visible;
+}*/
+
+/* Apne (sent) messages me avatar kabhi nahi */
+/*.message-row.me .avatar {
+  display: none;
+}*/
+
+/* Left side alignment fix */
+/*.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}*/
+
+/* Received left */
+/*.message-row:not(.me) {
+  justify-content: flex-start;
+}
+*/
+/* Sent right */
+/*.message-row.me {
+  justify-content: flex-end;
+}
+*/
