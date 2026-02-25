@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Isolophilia Community</title>
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,13 +21,21 @@
           <span class="badge beta">Beta</span>
           <span class="badge version">v1.09</span>
         </div>
-        <p class="status">
+        <p class="live-status">
           Online: <span id="online">0 Live</span>
          <span class="online-dot hidden" id="onlineDot"></span>       
         </p>
       </div>
     </div>
-    <div class="menu">⋮</div>
+ <!--   <div class="menu">⋮</div> -->
+<div class="menu">
+  ⋮
+  <div class="menu-dropdown">
+    <button id="logoutBtn"> <!--Logout</button> -->
+    <i class="fa-solid fa-right-from-bracket"></i>
+   Logout</button>
+  </div>
+</div>
   </header>
   <!-- HEADER END -->
    <p id="dateDisplay" style="text-align: center; color: #fff; font-size: 14px; margin-top: 10px;"></p>
@@ -34,14 +43,36 @@
   <div class="chat-wrapper">
     <div class="chat-bg">
       <div id="chat" class="chat"></div>
+    <div class="message">
+  <div class="msg-text">
+    <!-- Message Text -->
+    Hello, how are you?
+  </div>
+
+  <!-- Message Metadata (status) -->
+  <div class="message-meta">
+    <span class="status">
+      <svg class="tick small hidden" viewBox="0 0 20 20">
+        <polyline points="4 11 8 15 16 6" />
+      </svg>
+      <svg class="tick big hidden" viewBox="0 0 20 20">
+        <polyline points="4 11 8 15 16 6" />
+      </svg>
+    </span>
+  </div>
+</div>
+
     </div>
   </div>
 
   <div class="input-bar">
     <input type="text" id="messageInput" placeholder="Type a message..."/>
-    <button id="sendBtn">➤</button>
-  </div>
-
+     <div class="sendBtn">
+    <button id="sendBtn"><!--➤</button>-->
+   <i class="fa-solid fa-paper-plane"></i>
+  </button>
+  </div> 
+</div>  <!--for testing only -->
   <!-- Scroll-to-bottom button -->
 <script src="/app.js"></script>
 </body>

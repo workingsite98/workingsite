@@ -69,6 +69,7 @@ const messageSchema = new mongoose.Schema({
   time: { type: Number, index: true },
   reactions: { type: Map, of: [String], default: {} },
   status: { type: String, default: "server" },
+ avatar: { type: String, default: "" },
 });
 
 messageSchema.index({ room: 1, time: 1 });
@@ -118,11 +119,23 @@ passport.use(
       let role = "user";
       if (email === ADMIN_EMAIL) role = "admin";
 
-      const user = {
-        id: profile.id,
-        email,
-        role,
-      };
+// ✅ AVATAR FIX
+let avatarUrl = profile.photos?.[0]?.value || "";
+
+// Google resize safely
+if (avatarUrl.includes("googleusercontent")) {
+  avatarUrl = avatarUrl.split("=")[0] + "=s200-c";
+}
+const name = profile.displayName || email.split("@")[0];
+
+const user = {
+  id: profile.id,
+  email,
+  name,          // ✅ ADD THIS
+  role,
+  avatar: avatarUrl
+};
+//};
 
       done(null, user);
     }
@@ -212,13 +225,12 @@ sessionMiddleware(req, {}, () => {
         return;
       }
 
-    ws.send(
-      JSON.stringify({
-        type: "me",
-        //email: req.session.passport.user.email,
-     email: req.user.email, 
-})
-    );
+ws.send(JSON.stringify({
+  type: "me",
+  email: req.user.email,
+  name: req.user.name,   // ✅ ADD THIS
+  avatar: req.user.avatar
+}));
 
     const id = deviceId(req);
     sockets.set(ws, { id, room: "public" });
@@ -251,32 +263,35 @@ sessionMiddleware(req, {}, () => {
         if (!data.text?.trim()) return;
         if (data.text.length > 500) return;
 
-        const now = Date.now();
+/*        const now = Date.now();
         const lastTime = userLastMessage.get(id) || 0;
         if (now - lastTime < 1000) return;
-        userLastMessage.set(id, now);
+        userLastMessage.set(id, now);*/
+const now = Date.now();
+const lastTime = userLastMessage.get(id) || 0;
+// Reduce throttle to 300ms
+if (now - lastTime < 300) return;
+userLastMessage.set(id, now);
 
         const cleanText = sanitizeHtml(data.text.trim(), {
           allowedTags: [],
           allowedAttributes: {},
         });
 
-        //const userEmail = req.session.passport.user.email;
-//const userEmail = req.user?.email;
-const userEmail = req.user.email;
-
-/*if (!userEmail) {
-  console.log("⚠️ Missing user email in WS");
+const userEmail = req.user?.email;
+if (!userEmail) {
+  console.log("⚠️ WS user missing");
   return;
-}*/
-        const message = new Message({
-          room,
-          user: userEmail,
-          text: cleanText,
-          time: now,
-          reactions: {},
-          status: "server",
-        });
+}
+  const message = new Message({
+  room,
+ user: req.user?.name || userEmail, // ✅ IMPORTANT FIX
+  text: cleanText,
+  time: now,
+  reactions: {},
+  status: "server",
+  avatar: req.user?.avatar || ""
+});
 
         await message.save();
 
@@ -311,9 +326,14 @@ const userEmail = req.user.email;
 
       /* ===== HISTORY ===== */
       if (data.type === "history") {
-        const messages = await Message.find({ room })
-          .sort({ time: 1 })
-          .limit(500);
+const messages = await Message.find({ room })
+  .sort({ time: 1 })
+  .limit(500)
+  .lean();
+
+messages.forEach(m => {
+  if (!m.avatar) m.avatar = "";
+});
 
         ws.send(
           JSON.stringify({
@@ -352,15 +372,20 @@ const userEmail = req.user.email;
         if (typeof data.emoji !== "string" || data.emoji.length > 10)
           return;
 
-        const userEmail = req.session.passport.user.email;
+const userEmail = req.user?.email;
+if (!userEmail) return;
 const msg = await Message.findById(data.msgId);
         if (!msg || msg.room !== room) return;
 
         msg.reactions = msg.reactions || new Map();
 
-        if (!(msg.reactions instanceof Map)) {
-          msg.reactions = new Map(Object.entries(msg.reactions));
-        }
+if (!(msg.reactions instanceof Map)) {
+    try {
+        msg.reactions = new Map(Object.entries(msg.reactions));
+    } catch {
+        msg.reactions = new Map();
+    }
+}
 
         let alreadyHadSame = false;
 
@@ -426,8 +451,6 @@ const msg = await Message.findById(data.msgId);
 
       emitOnlineUsers();
     });
-  //});
-//});
 }); // passport.session
   });   // passport.initialize
 });     // sessionMiddleware

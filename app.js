@@ -1,332 +1,291 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-/* ================= GLOBAL STATE ================= */
-const MAX_MESSAGES_IN_DOM = 500;
-let ws;
-let reconnectDelay = 2000;
-let oldestMessageId = null;
-
-let unseenCount = 0;
-let historyLoaded = false;
-let loadingHistory = false;
-let historyEndReached = false;
-
-const renderedMessages = new Set();
-let lastMessageUser = null;
-let lastMessageWasHistory = false;
-let lastMessageTime = 0; // 🆕 time gap ke liye
-const GROUP_TIME_LIMIT = 5 * 60 * 1000; // 5 minutes
-
-const chat = document.getElementById("chat");
-const input = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
-const newMsgBtn = document.getElementById("newMsgBtn");
-
-/* ================= HELPERS ================= */
-function getTopVisibleMessage() {
-  const messages = chat.children;
-  if (!messages.length) return null; // optional safety
-
-  const chatRect = chat.getBoundingClientRect();
-
-  for (let i = 0; i < messages.length; i++) {
-    const rect = messages[i].getBoundingClientRect();
-    if (rect.bottom > chatRect.top) {
-      return messages[i];
-    }
+  // Logout handle function
+  function handleLogout() {
+    localStorage.removeItem("chatUser");   // purana user remove
+    window.currentUser = null;             // global variable clear
+    window.currentAvatar = null;           // avatar bhi clear
+    window.location.reload();              // page reload → redirect login
   }
-  return null;
-}
 
-function scrollToBottomSmooth() {
-  chat.scrollTo({
-    top: chat.scrollHeight,
-    behavior: "smooth"
+  // 3-dot menu toggle
+const menu = document.querySelector(".menu");
+const menuDropdown = document.querySelector(".menu-dropdown");
+
+if(menu) {
+  menu.addEventListener("click", (e) => {
+    e.stopPropagation(); // click bubble roke
+    menuDropdown.classList.toggle("show");
   });
 }
 
-function formatTime(ts) {
-  const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// click outside to close
+document.addEventListener("click", () => {
+  menuDropdown.classList.remove("show");
+});
+
+// Logout button
+const logoutBtn = document.getElementById("logoutBtn");
+if(logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem("chatUser");
+    window.currentUser = null;
+    window.currentAvatar = null;
+    window.location.reload(); // Gemini style → page reload karenge
+  });
 }
+  /* ================= GLOBAL STATE ================= */
+  const MAX_MESSAGES_IN_DOM = 500;
+  let ws;
+  let reconnectDelay = 2000;
+  let oldestMessageId = null;
+  let retryCount = 0; // global at top
+  const MAX_RETRIES = 10;
 
-/* ================= WEBSOCKET ================= */
+  let unseenCount = 0;
+  let historyLoaded = false;
+  let loadingHistory = false;
+  let historyEndReached = false;
 
-function connectWS() {
-  ws = new WebSocket(
-    (location.protocol === "https:" ? "wss://" : "ws://") + location.host
-  );
+  const renderedMessages = new Set();
+  let lastMessageUser = null;
+  let lastMessageWasHistory = false;
+  let lastMessageTime = 0; // 🆕 time gap ke liye
+  const GROUP_TIME_LIMIT = 5 * 60 * 1000; // 5 minutes
 
-  ws.onopen = () => {
-    reconnectDelay = 2000;
+  const chat = document.getElementById("chat");
+  const input = document.getElementById("messageInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const newMsgBtn = document.getElementById("newMsgBtn");
 
-if (!window.currentUser) {
-  const cachedUser = localStorage.getItem("chatUser");
+  /* ================= HELPERS ================= */
+  function getTopVisibleMessage() {
+    const messages = chat.children;
+    if (!messages.length) return null;
 
-  if (cachedUser && !window.currentUser) {
-    window.currentUser = cachedUser;
-  }
-}
+    const chatRect = chat.getBoundingClientRect();
 
-    ws.send(JSON.stringify({
-      type: "join",
-      room: "public",
-      user: window.currentUser
-    }));
-
-    ws.send(JSON.stringify({
-      type: "history",
-      room: "public",
-      beforeId: null
-    }));
-  };
-
-  ws.onmessage = handleWSMessage;
-
-  ws.onclose = () => {
-    setTimeout(connectWS, reconnectDelay);
-    reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
-  };
-//add this at 11:55pm for testing only
-ws.onerror = (err) => {
-  console.warn("WS error", err);
-};
-
-}
-
-connectWS();
-
-/* ================= ADD MESSAGE ================= */
-
-function addMessage(
-  user,
-  text,
-  isHistory = false,
-  time = Date.now(),
-  messageId = null,
-  reactions = {},
-  status = "server"
-) {
-
-  if (messageId && renderedMessages.has(messageId)) return;
-  if (messageId) renderedMessages.add(messageId);
-
-  const div = document.createElement("div");
-  if (messageId) div.dataset.id = messageId;
-
-// ===== IS ME =====
-const isMe =
-  (user || "").trim().toLowerCase() ===
-  (window.currentUser || "").trim().toLowerCase();
-
-// ===== TIME GAP =====
-const timeDiff = Math.abs(time - lastMessageTime);
-
-// ===== GROUPING LOGIC (PRO) =====
-const isGrouped =
-  lastMessageUser === user &&
-  timeDiff <= GROUP_TIME_LIMIT &&
-  !isHistory; // 🔥 history messages ko force new group
-
-div.className =
-  (isMe ? "message sent" : "message received") +
-  (isGrouped ? " grouped" : " new-group");
-
-// ===== NAME =====
-if (!isGrouped) {
-  const nameEl = document.createElement("div");
-  nameEl.className = "name";
-  nameEl.textContent = user || "Unknown";
-  div.appendChild(nameEl);
-}
-
-  /* ===== TEXT ===== */
-  const msgEl = document.createElement("div");
-  msgEl.className = "msg-text";
-  msgEl.textContent = text;
-  div.appendChild(msgEl);
-
-  /* ===== META (TIME + STATUS) ===== */
-
-  const meta = document.createElement("div");
-  meta.className = "message-meta";
-
-  const timeEl = document.createElement("span");
-  timeEl.className = "time";
-  timeEl.textContent = formatTime(time);
-  meta.appendChild(timeEl);
-
-  if (isMe) {
-    const statusEl = document.createElement("span");
-    statusEl.className = "status";
-
-    statusEl.innerHTML = `
-      <svg class="tick small" viewBox="0 0 20 20">
-        <polyline points="4 11 8 15 16 6" />
-      </svg>
-      <svg class="tick big hidden" viewBox="0 0 20 20">
-        <polyline points="4 11 8 15 16 6" />
-      </svg>
-    `;
-
-    meta.appendChild(statusEl);
-    setStatusVisual(statusEl, status);
-  }
-
-  div.appendChild(meta);
-
-  /* ===== REACTION POPUP ===== */
-
-  const reactContainer = document.createElement("div");
-  reactContainer.className = "reaction-popup";
-
-  ["❤️","👍","😂","😮","😢"].forEach(emoji => {
-
-    const btn = document.createElement("span");
-    btn.className = "reaction-emoji";
-    btn.textContent = emoji;
-
-    const reactedUsers = reactions?.[emoji] || [];
-
-    if (reactedUsers.includes(window.currentUser)) {
-      btn.style.background = "rgba(0,150,255,0.35)";
-      btn.style.borderRadius = "50%";
+    for (let i = 0; i < messages.length; i++) {
+      const rect = messages[i].getBoundingClientRect();
+      if (rect.bottom > chatRect.top) return messages[i];
     }
+    return null;
+  }
 
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      if (!messageId) return;
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  function scrollToBottomSmooth() {
+    chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+  }
 
-      ws.send(JSON.stringify({
-        type: "react",
-        room: "public",
-        msgId: messageId,
-        emoji
-      }));
+  function formatTime(ts) {
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
 
-      reactContainer.classList.remove("show");
+  /* ================= WEBSOCKET ================= */
+  function connectWS() {
+    ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host);
+
+    ws.onopen = () => {
+      reconnectDelay = 2000;
+
+      if (!window.currentUser) {
+        const cachedUser = localStorage.getItem("chatUser");
+        if (cachedUser) window.currentUser = cachedUser;
+      }
+
+      ws.send(JSON.stringify({ type: "join", room: "public", user: window.currentUser }));
+      ws.send(JSON.stringify({ type: "history", room: "public", beforeId: null }));
     };
 
-    reactContainer.appendChild(btn);
-  });
+    ws.onmessage = handleWSMessage;
 
-  div.appendChild(reactContainer);
+    ws.onclose = () => {
+      setTimeout(() => {
+        if (retryCount < MAX_RETRIES) {
+          connectWS();
+          retryCount++;
+          reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
+        } else {
+          console.warn("Max reconnect attempts reached.");
+        }
+      }, reconnectDelay);
+    };
 
-  /* ===== LONG PRESS ===== */
+    ws.onerror = (err) => {
+      console.warn("WS error", err);
+    };
+  }
 
-  let pressTimer;
+  connectWS();
 
-  function showReactionPopup() {
-    document.querySelectorAll(".reaction-popup.show")
-      .forEach(el => el.classList.remove("show"));
+  /* ================= ADD MESSAGE ================= */
+  function addMessage(user, text, isHistory = false, time = Date.now(), messageId = null, reactions = {}, status = "server", avatar = "") {
+    if (messageId && renderedMessages.has(messageId)) return;
+    if (messageId) renderedMessages.add(messageId);
 
-    reactContainer.classList.add("show");
+    const isMe = (user || "").trim().toLowerCase() === (window.currentUser || "").trim().toLowerCase();
 
-    const rect = div.getBoundingClientRect();
+    const wrapper = document.createElement("div");
+    wrapper.className = isMe ? "message-row me" : "message-row";
 
-    if (rect.top < 80) {
-      reactContainer.style.top = "100%";
-      reactContainer.style.bottom = "auto";
-    } else {
-      reactContainer.style.bottom = "100%";
-      reactContainer.style.top = "auto";
+    const div = document.createElement("div");
+    if (messageId) div.dataset.id = messageId;
+
+    const timeDiff = Math.abs(time - lastMessageTime);
+
+    const isGrouped = lastMessageUser === user && timeDiff <= GROUP_TIME_LIMIT && !isHistory;
+
+    div.className = (isMe ? "message sent" : "message received") + (isGrouped ? " grouped" : " new-group");
+
+    if (!isGrouped && avatar) {
+      const avatarEl = document.createElement("img");
+      avatarEl.className = "avatar";
+      avatarEl.src = avatar;
+      avatarEl.onerror = () => { avatarEl.src = "/default-avatar.png"; };
+      wrapper.appendChild(avatarEl);
     }
-  }
 
-  div.addEventListener("touchstart", () => {
-    pressTimer = setTimeout(showReactionPopup, 400);
-  });
+    if (!isGrouped) {
+      const nameEl = document.createElement("div");
+      nameEl.className = "name";
+      nameEl.textContent = user || "Unknown";
+      div.appendChild(nameEl);
+    }
 
-  div.addEventListener("touchend", () => {
-    clearTimeout(pressTimer);
-  });
+    const msgEl = document.createElement("div");
+    msgEl.className = "msg-text";
+    msgEl.textContent = text;
+    div.appendChild(msgEl);
 
-  div.addEventListener("mousedown", () => {
-    pressTimer = setTimeout(showReactionPopup, 400);
-  });
+    const meta = document.createElement("div");
+    meta.className = "message-meta";
 
-  div.addEventListener("mouseup", () => {
-    clearTimeout(pressTimer);
-  });
+    const timeEl = document.createElement("span");
+    timeEl.className = "time";
+    timeEl.textContent = formatTime(time);
+    meta.appendChild(timeEl);
 
-  /* ===== APPEND / PREPEND ===== */
-const wasAtBottom =
-  Math.abs(chat.scrollHeight - chat.scrollTop - chat.clientHeight) < 10;
+    if (isMe) {
+      const statusEl = document.createElement("span");
+      statusEl.className = "status";
+      statusEl.innerHTML = `
+        <svg class="tick small" viewBox="0 0 20 20"><polyline points="4 11 8 15 16 6" /></svg>
+        <svg class="tick big hidden" viewBox="0 0 20 20"><polyline points="4 11 8 15 16 6" /></svg>
+      `;
+      meta.appendChild(statusEl);
+      setStatusVisual(statusEl, status);
+    }
 
-if (isHistory) {
-  const anchor = getTopVisibleMessage();
-  const prevTop = anchor ? anchor.getBoundingClientRect().top : 0;
+    div.appendChild(meta);
 
-  chat.prepend(div);
+    const reactContainer = document.createElement("div");
+    reactContainer.className = "reaction-popup";
 
-  if (anchor) {
-    const newTop = anchor.getBoundingClientRect().top;
-    chat.scrollTop += newTop - prevTop;
-  }
-} else {
-  chat.appendChild(div);
-}
-// ✅ DOM CAP — PUT HERE
-if (!isHistory) {
-  while (chat.children.length > MAX_MESSAGES_IN_DOM) {
-    chat.removeChild(chat.firstChild);
-  }
-}
-  if (isHistory && !historyLoaded) {
-    scrollToBottomSmooth();
-    historyLoaded = true;
-  } else if (!isHistory) {
-    if (wasAtBottom) {
+    ["❤️","👍","😂","😮","😢"].forEach(emoji => {
+      const btn = document.createElement("span");
+      btn.className = "reaction-emoji";
+      btn.textContent = emoji;
+      const reactedUsers = reactions?.[emoji] || [];
+      if (reactedUsers.includes(window.currentUser)) {
+        btn.style.background = "rgba(0,150,255,0.35)";
+        btn.style.borderRadius = "50%";
+      }
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (!messageId) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ type: "react", room: "public", msgId: messageId, emoji }));
+        reactContainer.classList.remove("show");
+      };
+      reactContainer.appendChild(btn);
+    });
+    div.appendChild(reactContainer);
+
+    let pressTimer;
+    function showReactionPopup() {
+      document.querySelectorAll(".reaction-popup.show").forEach(el => el.classList.remove("show"));
+      reactContainer.classList.add("show");
+      const rect = div.getBoundingClientRect();
+      if (rect.top < 80) {
+        reactContainer.style.top = "100%";
+        reactContainer.style.bottom = "auto";
+      } else {
+        reactContainer.style.bottom = "100%";
+        reactContainer.style.top = "auto";
+      }
+    }
+
+    div.addEventListener("touchstart", () => { pressTimer = setTimeout(showReactionPopup, 600); });
+    div.addEventListener("touchend", () => { clearTimeout(pressTimer); });
+    div.addEventListener("mousedown", () => { pressTimer = setTimeout(showReactionPopup, 400); });
+    div.addEventListener("mouseup", () => { clearTimeout(pressTimer); });
+
+    const wasAtBottom = Math.abs(chat.scrollHeight - chat.scrollTop - chat.clientHeight) < 10;
+
+    if (isHistory) {
+      const anchor = getTopVisibleMessage();
+      const prevTop = anchor ? anchor.getBoundingClientRect().top : 0;
+      wrapper.appendChild(div);
+      chat.prepend(wrapper);
+      if (anchor && chat.scrollTop > 0) {
+        const newTop = anchor.getBoundingClientRect().top;
+        chat.scrollTop += newTop - prevTop;
+      }
+    } else {
+      wrapper.appendChild(div);
+      chat.appendChild(wrapper);
+    }
+
+    if (!isHistory) {
+      while (chat.children.length > MAX_MESSAGES_IN_DOM) {
+        chat.removeChild(chat.firstChild);
+      }
+    }
+
+    if (isHistory && !historyLoaded) {
       scrollToBottomSmooth();
-    } else {
-      unseenCount++;
-      updateNewMsgBtn();
+      historyLoaded = true;
+    } else if (!isHistory) {
+      if (wasAtBottom) scrollToBottomSmooth();
+      else { unseenCount++; updateNewMsgBtn(); }
     }
+
+    lastMessageUser = user;
+    lastMessageWasHistory = isHistory;
+    lastMessageTime = time;
   }
-// ===== UPDATE GROUP TRACKER =====
-lastMessageUser = user;
-lastMessageWasHistory = isHistory;
-lastMessageTime = time; // 🆕 VERY IMPORTANT
-}
 
-/* ================= REACTION UPDATE ================= */
-
-function updateMessage(msg) {
-  const messageDiv = document.querySelector(`[data-id='${msg._id}']`);
-  if (!messageDiv) return;
-
-  const emojis = messageDiv.querySelectorAll(".reaction-emoji");
-
-  emojis.forEach(el => {
-    const emoji = el.textContent;
-    const users = msg.reactions?.[emoji] || [];
-
-    if (users.includes(window.currentUser)) {
-      el.style.background = "rgba(0,150,255,0.35)";
-      el.style.borderRadius = "50%";
-    } else {
-      el.style.background = "transparent";
-    }
-  });
-}
-
-/* ================= STATUS CONTROL ================= */
-
+  function updateMessage(msg) {
+    const messageDiv = document.querySelector(`[data-id='${msg._id}']`);
+    if (!messageDiv) return;
+    const emojis = messageDiv.querySelectorAll(".reaction-emoji");
+    emojis.forEach(el => {
+      const emoji = el.textContent;
+      const users = msg.reactions?.[emoji] || [];
+      if (users.includes(window.currentUser)) {
+        el.style.background = "rgba(0,150,255,0.35)";
+        el.style.borderRadius = "50%";
+      } else { el.style.background = "transparent"; }
+    });
+  }
 function setStatusVisual(statusEl, state) {
   const small = statusEl.querySelector(".tick.small");
   const big = statusEl.querySelector(".tick.big");
 
+  // Dono ticks ko pehle hide karna
+  small.classList.add("hidden");
   big.classList.add("hidden");
-  statusEl.classList.remove("seen");
 
+  // Agar message delivered hai, toh small tick ko dikhana
   if (state === "delivered") {
-    big.classList.remove("hidden");
+    small.classList.remove("hidden");
+    small.style.opacity = "1";  // Small tick ko visible karte hain
   }
 
+  // Agar message seen hai, toh big tick ko dikhana
   if (state === "seen") {
     big.classList.remove("hidden");
-    statusEl.classList.add("seen");
+    big.style.opacity = "1";  // Big tick ko visible karte hain
   }
 }
 
@@ -337,159 +296,121 @@ function updateMessageStatus(msgId, state) {
   const statusEl = messageDiv.querySelector(".status");
   if (!statusEl) return;
 
-  setStatusVisual(statusEl, state);
+  setStatusVisual(statusEl, state); // Update the tick based on the status
 }
-
-/* ================= SEND ================= */
 
 function sendMessage() {
   const text = input.value.trim();
-  if (!text) return;
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!text) return; // Agar input empty hai, toh kuch mat bhejo
 
+  if (!ws || ws.readyState !== WebSocket.OPEN) return; // Agar WebSocket open nahi hai, toh kuch mat bhejo
+
+  // Unique message ID generate kar rahe hain
+  const messageID = Date.now();  // Yeh unique ID hai har message ke liye
+
+  // Message ko WebSocket ke through send karte hain
   ws.send(JSON.stringify({
     type: "chat",
     room: "public",
-    text
+    text: text,
+    messageId: messageID  // Yeh ID message ke sath bhej rahe hain
   }));
 
-  input.value = "";
+  // Message ko "delivered" status dene ke liye
+  updateMessageStatus(messageID, 'delivered');  // Small tick show hoga
+
+  input.value = ""; // Input field ko clear karte hain
 }
 
-sendBtn.addEventListener("click", sendMessage);
-input.addEventListener("keydown", e => {
-  if (e.key === "Enter") sendMessage();
-});
+ /* function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "chat", room: "public", text }));
+    input.value = "";
+  updateMessageStatus(messageID, 'delivered');
+  }*/
 
-/* ================= WS HANDLER ================= */
+  sendBtn.addEventListener("click", sendMessage);
+  input.addEventListener("keydown", e => { if(e.key === "Enter") sendMessage(); });
 
-function handleWSMessage(event) {
+  function handleWSMessage(event) {
+    const data = JSON.parse(event.data);
 
-  const data = JSON.parse(event.data);
+if (data.type === "me") {
+  window.currentUser = data.name || data.email; // ✅ FIX
+  window.currentAvatar = data.avatar || "";
+  localStorage.setItem("chatUser", window.currentUser); // ✅ FIX
+  return;
+}
 
-  if (data.type === "me") {
-    window.currentUser = data.email;
-    localStorage.setItem("chatUser", data.email);
-    return;
-  }
-
-  if (data.type === "online-users") {
-    document.getElementById("online").textContent =
-      `${data.count} Live`;
-  }
-
-  if (data.type === "history") {
-
-    if (data.messages.length > 0) {
-      oldestMessageId = data.messages[0]._id;
+    if (data.type === "online-users") {
+      document.getElementById("online").textContent = `${data.count} Live`;
     }
 
-    //data.messages.forEach(msg => {
-     data.messages.reverse().forEach(msg => {
-        addMessage(
-        msg.user,
-        msg.text,
-        true,
-        msg.time,
-        msg._id,
-        msg.reactions,
-        msg.status || "server"
-      );
-    });
-
-    if (data.messages.length < 500) {
-      historyEndReached = true;
-    }
- loadingHistory = false; 
-}
-
-  if (data.type === "chat") {
-    addMessage(
-      data.msg.user,
-      data.msg.text,
-      false,
-      data.msg.time,
-      data.msg._id,
-      data.msg.reactions,
-      data.msg.status || "server"
-    );
-  }
-
-  if (data.type === "chat-update") {
-    updateMessage(data.msg);
-  }
-
-  if (data.type === "status-update") {
-    updateMessageStatus(data.msgId, data.state);
-  }
-}
-
-/* ================= NEW MESSAGE BUTTON ================= */
-
-function updateNewMsgBtn() {
-  if (unseenCount > 0) {
-    newMsgBtn.textContent = `${unseenCount} new message(s) ⬇`;
-    newMsgBtn.classList.remove("hidden");
-  } else {
-    newMsgBtn.classList.add("hidden");
-  }
-}
-
-newMsgBtn.addEventListener("click", () => {
-  scrollToBottomSmooth();
-  unseenCount = 0;
-  updateNewMsgBtn();
-});
-
-/* ================= SCROLL ================= */
-
-let scrollTicking = false;
-
-//chat.addEventListener("scroll", () => {
-chat.addEventListener("scroll", () => {
-  if (scrollTicking) return;
-  scrollTicking = true;
-
-  requestAnimationFrame(() => {
-    const scrollTop = chat.scrollTop;
-    const scrollHeight = chat.scrollHeight;
-    const clientHeight = chat.clientHeight;
-
-    const atBottom =
-      scrollHeight - scrollTop <= clientHeight + 5;
-
-    if (atBottom) {
-      unseenCount = 0;
-      updateNewMsgBtn();
+    if (data.type === "history") {
+      if (data.messages.length > 0) oldestMessageId = data.messages[0]._id;
+      data.messages.reverse().forEach(msg => {
+        addMessage(msg.user, msg.text, true, msg.time, msg._id, msg.reactions, msg.status || "server", msg.avatar);
+      });
+      if (data.messages.length < 500) historyEndReached = true;
+      loadingHistory = false;
     }
 
-    //const nearTop = scrollTop <= 50;
-     const nearTop = scrollTop <= 80;
+   /* if (data.type === "chat") {
+      addMessage(data.msg.user, data.msg.text, false, data.msg.time, data.msg._id, data.msg.reactions, data.msg.status || "server", data.msg.avatar);
+      updateMessageStatus(data.msg._id, 'seen');
+   }*/
+if (data.type === "chat") {
+    // Jab message aata hai, tum use add karte ho aur status ko "seen" mark karte ho
+    addMessage(data.msg.user, data.msg.text, false, data.msg.time, data.msg._id, data.msg.reactions, data.msg.status || "server", data.msg.avatar);
+    updateMessageStatus(data.msg._id, 'seen');  // Message ko "seen" mark kar rahe hain
+  }
 
-    if (nearTop && !loadingHistory && !historyEndReached) {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        scrollTicking = false;
-        return;
+    if (data.type === "chat-update") updateMessage(data.msg);
+    if (data.type === "status-update") updateMessageStatus(data.msgId, data.state);
+  }
+
+  function updateNewMsgBtn() {
+    if (unseenCount > 0) {
+      newMsgBtn.textContent = `${unseenCount} new message(s) ⬇`;
+      newMsgBtn.classList.remove("hidden");
+    } else { newMsgBtn.classList.add("hidden"); }
+  }
+
+  newMsgBtn.addEventListener("click", () => {
+    scrollToBottomSmooth();
+    unseenCount = 0;
+    updateNewMsgBtn();
+  });
+
+  let scrollTicking = false;
+  chat.addEventListener("scroll", () => {
+    if (scrollTicking) return;
+    scrollTicking = true;
+
+    requestAnimationFrame(() => {
+      const scrollTop = chat.scrollTop;
+      const scrollHeight = chat.scrollHeight;
+      const clientHeight = chat.clientHeight;
+
+      const atBottom = scrollHeight - scrollTop <= clientHeight + 5;
+      if (atBottom) { unseenCount = 0; updateNewMsgBtn(); }
+
+      const nearTop = scrollTop <= 80;
+      if (nearTop && !loadingHistory && !historyEndReached) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) { scrollTicking = false; return; }
+        loadingHistory = true;
+        ws.send(JSON.stringify({ type: "history", room: "public", beforeId: oldestMessageId }));
       }
 
-      loadingHistory = true;
+      scrollTicking = false;
+    });
+  }, { passive: true });
 
-      ws.send(JSON.stringify({
-        type: "history",
-        room: "public",
-        beforeId: oldestMessageId
-      }));
-    }
-
-    scrollTicking = false;
+  // Global click to close popups
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".reaction-popup.show").forEach(el => el.classList.remove("show"));
   });
-}, { passive: true });
-
-/* ===== GLOBAL CLICK CLOSE POPUP ===== */
-
-document.addEventListener("click", () => {
-  document.querySelectorAll(".reaction-popup.show")
-    .forEach(el => el.classList.remove("show"));
-});
 
 });
