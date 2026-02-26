@@ -140,13 +140,57 @@ let isTyping = false;
 
   connectWS();
 
-  /* ================= ADD MESSAGE ================= */
-  function addMessage(user, text, isHistory = false, time = Date.now(), messageId = null, reactions = {}, status = "server", avatar = "") {
+function addMessage(user, text, isHistory = false, time = Date.now(), messageId = null, reactions = {}, status = "server", avatar = "") {
     if (messageId && renderedMessages.has(messageId)) return;
     if (messageId) renderedMessages.add(messageId);
 
     const isMe = (user || "").trim().toLowerCase() === (window.currentUser || "").trim().toLowerCase();
 
+    // ----------------- DATE SEPARATOR -----------------
+    const messageDate = new Date(time);
+    const messageDateStr = messageDate.toDateString(); // unique string per day
+
+    // last date separator in chat
+    const lastDateSeparator = chat.querySelector(".date-separator:last-child")?.dataset?.date;
+
+    // Check if the message is from today, yesterday or an old date
+    if (messageDateStr !== lastDateSeparator) {
+        const dateWrapper = document.createElement("div");
+        dateWrapper.className = "date-separator";
+        dateWrapper.dataset.date = messageDateStr;
+
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+
+        // Show Today, Yesterday or the exact date
+        if (messageDate.toDateString() === today.toDateString()) {
+            dateWrapper.textContent = "Today";
+        } else if (messageDate.toDateString() === yesterday.toDateString()) {
+            dateWrapper.textContent = "Yesterday";
+        } else {
+            dateWrapper.textContent = messageDate.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+        }
+
+        const dateWrapperOuter = document.createElement("div");
+        dateWrapperOuter.className = "date-wrapper";
+        dateWrapperOuter.appendChild(dateWrapper);
+
+        // WhatsApp-style scroll restore
+        if (isHistory) {
+            const anchor = getTopVisibleMessage();
+            const prevTop = anchor ? anchor.getBoundingClientRect().top : 0;
+            chat.prepend(dateWrapperOuter);  // For history messages, prepend
+            if (anchor) {
+                const newTop = anchor.getBoundingClientRect().top;
+                chat.scrollTop += newTop - prevTop; // Restore scroll position
+            }
+        } else {
+            chat.appendChild(dateWrapperOuter);  // For new messages, append
+        }
+    }
+
+    // ----------------- MESSAGE ELEMENT -----------------
     const wrapper = document.createElement("div");
     wrapper.className = isMe ? "message-row me" : "message-row";
 
@@ -154,39 +198,39 @@ let isTyping = false;
     if (messageId) div.dataset.id = messageId;
 
     const timeDiff = Math.abs(time - lastMessageTime);
-
     const isGrouped = lastMessageUser === user && timeDiff <= GROUP_TIME_LIMIT && !isHistory;
 
     div.className = (isMe ? "message sent" : "message received") + (isGrouped ? " grouped" : " new-group");
 
-if (!isMe) {
-    const avatarEl = document.createElement("img");
-    avatarEl.className = "avatar";
+    // avatar
+    if (!isMe) {
+        const avatarEl = document.createElement("img");
+        avatarEl.className = "avatar";
 
-    if (avatar) {
-        avatarEl.src = avatar;
-        avatarEl.onerror = () => { avatarEl.src = "/default-avatar.png"; };
+        if (avatar) {
+            avatarEl.src = avatar;
+            avatarEl.onerror = () => { avatarEl.src = "/default-avatar.png"; };
+        }
+
+        if (isGrouped) avatarEl.classList.add("avatar-placeholder");
+        wrapper.appendChild(avatarEl);
     }
 
-    if (isGrouped) {
-        avatarEl.classList.add("avatar-placeholder");
-    }
-
-    wrapper.appendChild(avatarEl);
-}
-
+    // name
     if (!isGrouped) {
-      const nameEl = document.createElement("div");
-      nameEl.className = "name";
-      nameEl.textContent = user || "Unknown";
-      div.appendChild(nameEl);
+        const nameEl = document.createElement("div");
+        nameEl.className = "name";
+        nameEl.textContent = user || "Unknown";
+        div.appendChild(nameEl);
     }
 
+    // message text
     const msgEl = document.createElement("div");
     msgEl.className = "msg-text";
     msgEl.textContent = text;
     div.appendChild(msgEl);
 
+    // meta (time + status)
     const meta = document.createElement("div");
     meta.className = "message-meta";
 
@@ -196,94 +240,95 @@ if (!isMe) {
     meta.appendChild(timeEl);
 
     if (isMe) {
-      const statusEl = document.createElement("span");
-      statusEl.className = "status";
-      statusEl.innerHTML = `
-        <svg class="tick small" viewBox="0 0 20 20"><polyline points="4 11 8 15 16 6" /></svg>
-        <svg class="tick big hidden" viewBox="0 0 20 20"><polyline points="4 11 8 15 16 6" /></svg>
-      `;
-      meta.appendChild(statusEl);
-      setStatusVisual(statusEl, status);
+        const statusEl = document.createElement("span");
+        statusEl.className = "status";
+        statusEl.innerHTML = `
+            <svg class="tick small" viewBox="0 0 20 20"><polyline points="4 11 8 15 16 6" /></svg>
+            <svg class="tick big hidden" viewBox="0 0 20 20"><polyline points="4 11 8 15 16 6" /></svg>
+        `;
+        meta.appendChild(statusEl);
+        setStatusVisual(statusEl, status);
     }
 
     div.appendChild(meta);
 
+    // reactions
     const reactContainer = document.createElement("div");
     reactContainer.className = "reaction-popup";
-
     ["❤️","👍","😂","😮","😢"].forEach(emoji => {
-      const btn = document.createElement("span");
-      btn.className = "reaction-emoji";
-      btn.textContent = emoji;
-      const reactedUsers = reactions?.[emoji] || [];
-      if (reactedUsers.includes(window.currentUser)) {
-        btn.style.background = "rgba(0,150,255,0.35)";
-        btn.style.borderRadius = "50%";
-      }
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        if (!messageId) return;
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ type: "react", room: "public", msgId: messageId, emoji }));
-        reactContainer.classList.remove("show");
-      };
-      reactContainer.appendChild(btn);
+        const btn = document.createElement("span");
+        btn.className = "reaction-emoji";
+        btn.textContent = emoji;
+        const reactedUsers = reactions?.[emoji] || [];
+        if (reactedUsers.includes(window.currentUser)) {
+            btn.style.background = "rgba(0,150,255,0.35)";
+            btn.style.borderRadius = "50%";
+        }
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            if (!messageId) return;
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: "react", room: "public", msgId: messageId, emoji }));
+            reactContainer.classList.remove("show");
+        };
+        reactContainer.appendChild(btn);
     });
     div.appendChild(reactContainer);
 
+    // reaction popup events
     let pressTimer;
     function showReactionPopup() {
-      document.querySelectorAll(".reaction-popup.show").forEach(el => el.classList.remove("show"));
-      reactContainer.classList.add("show");
-      const rect = div.getBoundingClientRect();
-      if (rect.top < 80) {
-        reactContainer.style.top = "100%";
-        reactContainer.style.bottom = "auto";
-      } else {
-        reactContainer.style.bottom = "100%";
-        reactContainer.style.top = "auto";
-      }
+        document.querySelectorAll(".reaction-popup.show").forEach(el => el.classList.remove("show"));
+        reactContainer.classList.add("show");
+        const rect = div.getBoundingClientRect();
+        if (rect.top < 80) {
+            reactContainer.style.top = "100%";
+            reactContainer.style.bottom = "auto";
+        } else {
+            reactContainer.style.bottom = "100%";
+            reactContainer.style.top = "auto";
+        }
     }
-
     div.addEventListener("touchstart", () => { pressTimer = setTimeout(showReactionPopup, 600); });
     div.addEventListener("touchend", () => { clearTimeout(pressTimer); });
     div.addEventListener("mousedown", () => { pressTimer = setTimeout(showReactionPopup, 400); });
     div.addEventListener("mouseup", () => { clearTimeout(pressTimer); });
 
+    // append/prepend wrapper
     const wasAtBottom = Math.abs(chat.scrollHeight - chat.scrollTop - chat.clientHeight) < 10;
-
     if (isHistory) {
-      const anchor = getTopVisibleMessage();
-      const prevTop = anchor ? anchor.getBoundingClientRect().top : 0;
-      wrapper.appendChild(div);
-      chat.prepend(wrapper);
-      if (anchor && chat.scrollTop > 0) {
-        const newTop = anchor.getBoundingClientRect().top;
-        chat.scrollTop += newTop - prevTop;
-      }
+        const anchor = getTopVisibleMessage();
+        const prevTop = anchor ? anchor.getBoundingClientRect().top : 0;
+        wrapper.appendChild(div);
+        chat.prepend(wrapper);
+        if (anchor) {
+            const newTop = anchor.getBoundingClientRect().top;
+            chat.scrollTop += newTop - prevTop; // Restore scroll position
+        }
     } else {
-      wrapper.appendChild(div);
-      chat.appendChild(wrapper);
+        wrapper.appendChild(div);
+        chat.appendChild(wrapper);
     }
 
+    // remove extra old messages
     if (!isHistory) {
-      while (chat.children.length > MAX_MESSAGES_IN_DOM) {
-        chat.removeChild(chat.firstChild);
-      }
+        while (chat.children.length > MAX_MESSAGES_IN_DOM) {
+            chat.removeChild(chat.firstChild);
+        }
     }
 
     if (isHistory && !historyLoaded) {
-      scrollToBottomSmooth();
-      historyLoaded = true;
+        scrollToBottomSmooth();
+        historyLoaded = true;
     } else if (!isHistory) {
-      if (wasAtBottom) scrollToBottomSmooth();
-      else { unseenCount++; updateNewMsgBtn(); }
+        if (wasAtBottom) scrollToBottomSmooth();
+        else { unseenCount++; updateNewMsgBtn(); }
     }
 
     lastMessageUser = user;
     lastMessageWasHistory = isHistory;
     lastMessageTime = time;
-  }
+}
 
   function updateMessage(msg) {
     const messageDiv = document.querySelector(`[data-id='${msg._id}']`);
