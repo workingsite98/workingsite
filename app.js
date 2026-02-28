@@ -53,6 +53,9 @@ if(logoutBtn) {
   let lastMessageWasHistory = false;
   let lastMessageTime = 0; // 🆕 time gap ke liye
   const GROUP_TIME_LIMIT = 5 * 60 * 1000; // 5 minutes
+  // Line 56 ke paas add karo
+  let currentReplyData = null; 
+
 
   const chat = document.getElementById("chat");
   const input = document.getElementById("messageInput");
@@ -136,7 +139,7 @@ let isTyping = false;
   connectWS();
 
 /* ================= ADD MESSAGE ================= */
-function addMessage(user, text, isHistory = false, time = Date.now(), messageId = null, reactions = {}, status = "server", avatar = "") {
+function addMessage(user, text, isHistory = false, time = Date.now(), messageId = null, reactions = {}, status = "server", avatar = "", replyTo = null) {
     if (messageId && renderedMessages.has(messageId)) return;
     if (messageId) renderedMessages.add(messageId);
 
@@ -203,12 +206,48 @@ function addMessage(user, text, isHistory = false, time = Date.now(), messageId 
         nameEl.textContent = user || "Unknown";
         div.appendChild(nameEl);
     }
+    // --- REPLY UI IN CHAT BOX ---
+    if (replyTo) {
+        const replyTag = document.createElement("div");
+        replyTag.className = "reply-tag";
+        replyTag.innerHTML = `
+            <small>@${replyTo.user}</small>
+            <p>${replyTo.text}</p>
+        `;
 
-    const msgEl = document.createElement("div");
-    msgEl.className = "msg-text";
-    msgEl.textContent = text;
+        replyTag.onclick = () => {
+            const target = document.querySelector(`[data-id='${replyTo.msgId}']`);
+            if (target) {
+                // 1. Smooth scroll to message
+                target.scrollIntoView({ behavior: "smooth", block: "center" });
+
+                // 2. Highlight effect (Flash)
+                target.classList.add("highlight-msg");
+                setTimeout(() => {
+                    target.classList.remove("highlight-msg");
+                }, 2000); 
+            }
+        };
+        div.appendChild(replyTag);
+    } // <--- Ye brace tune miss kar diya tha!
+
+// --- PURANA IDENTICAL CODE HATAO AUR SIRF YE RAKHO ---
+const msgEl = document.createElement("span"); // ✅ 'div' ki jagah 'span' karo
+msgEl.className = "msg-text";
+
+    // Text content set karo
+    if (text === "This message was deleted" || text === "🚫 This message was deleted") {
+        msgEl.textContent = "🚫 This message was deleted";
+        msgEl.style.fontStyle = "italic";
+        msgEl.style.opacity = "0.6";
+    } else {
+        msgEl.textContent = text;
+    }
+
+    // IMPORTANT: msgEl ko message bubble (div) ke andar daalo
     div.appendChild(msgEl);
 
+    // --- META (TIME & STATUS) ---
     const meta = document.createElement("div");
     meta.className = "message-meta";
     const timeEl = document.createElement("span");
@@ -226,15 +265,18 @@ function addMessage(user, text, isHistory = false, time = Date.now(), messageId 
         meta.appendChild(statusEl);
         setStatusVisual(statusEl, status);
     }
-
     div.appendChild(meta);
 
+    // --- REACTION POPUP ---
     const reactContainer = document.createElement("div");
     reactContainer.className = "reaction-popup";
-    ["❤️","👍","😂","😮","😢"].forEach(emoji => {
+
+    // Yahan humne list thodi badi kar di hai taaki scroll feature kaam kare
+    ["❤️","👍","😂","😮","😢","🔥","👏"].forEach(emoji => {
         const btn = document.createElement("span");
         btn.className = "reaction-emoji";
         btn.textContent = emoji;
+
         const reactedUsers = reactions?.[emoji] || [];
         if (reactedUsers.includes(window.currentUser)) {
             btn.style.background = "rgba(0,150,255,0.35)";
@@ -249,26 +291,126 @@ function addMessage(user, text, isHistory = false, time = Date.now(), messageId 
         };
         reactContainer.appendChild(btn);
     });
+
+    // --- DELETE & REPLY BUTTONS IN POPUP ---
+    if (isMe) {
+        const delBtn = document.createElement("span");
+        delBtn.className = "reaction-emoji delete-msg-btn";
+        delBtn.innerHTML = "🗑️";
+        delBtn.style.color = "#ff4d4d";
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm("Delete this message?")) {
+                ws.send(JSON.stringify({ type: "delete-msg", msgId: messageId }));
+            }
+            reactContainer.classList.remove("show");
+        };
+        reactContainer.appendChild(delBtn);
+    }
+
+    const replyBtn = document.createElement("span");
+    replyBtn.className = "reaction-emoji reply-msg-btn";
+    replyBtn.innerHTML = "↩️";
+    replyBtn.onclick = (e) => {
+        e.stopPropagation();
+        currentReplyData = { msgId: messageId, user: user, text: text };
+        document.getElementById("replyUser").textContent = user;
+        document.getElementById("replyText").textContent = text;
+        document.getElementById("replyPreview").classList.remove("hidden");
+        input.focus();
+        reactContainer.classList.remove("show");
+    };
+    reactContainer.appendChild(replyBtn);
+
     div.appendChild(reactContainer);
 
-    let pressTimer;
+    // --- POPUP SHOW LOGIC (Fixed for Scroll/WhatsApp Feel) ---
     function showReactionPopup() {
         document.querySelectorAll(".reaction-popup.show").forEach(el => el.classList.remove("show"));
         reactContainer.classList.add("show");
+
         const rect = div.getBoundingClientRect();
-        if (rect.top < 80) {
-            reactContainer.style.top = "100%";
+        // Screen ke bohot upar ho toh niche dikhao, warna upar
+        if (rect.top < 150) {
+            reactContainer.style.top = "110%";
             reactContainer.style.bottom = "auto";
         } else {
-            reactContainer.style.bottom = "100%";
+            reactContainer.style.bottom = "120%";
             reactContainer.style.top = "auto";
         }
     }
 
-    div.addEventListener("touchstart", () => { pressTimer = setTimeout(showReactionPopup, 600); });
-    div.addEventListener("touchend", () => { clearTimeout(pressTimer); });
+    // Long Press Event Listeners
+//    div.addEventListener("touchstart", () => { pressTimer = setTimeout(showReactionPopup, 500); });
+  //  div.addEventListener("touchend", () => { clearTimeout(pressTimer); });
+    //div.addEventListener("mousedown", () => { pressTimer = setTimeout(showReactionPopup, 400); });
+  //  div.addEventListener("mouseup", () => { clearTimeout(pressTimer); });
+    // --- 343 Line se Start (REPLACING OLD LISTENERS) ---
+    // --- 349 Line se Start ---
+    let touchStartX = 0;
+    let touchStartY = 0; // 👈 Yeh naya variable add karo
+    let touchMoveX = 0;
+    let pressTimer;
+
+    div.addEventListener("touchstart", (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY; // 👈 Start Y position save karo
+        touchMoveX = touchStartX; 
+        pressTimer = setTimeout(showReactionPopup, 500);
+    }, { passive: true });
+
+    div.addEventListener("touchmove", (e) => {
+        touchMoveX = e.touches[0].clientX;
+        let touchMoveY = e.touches[0].clientY; // Current Y position
+
+        const diffX = touchMoveX - touchStartX;
+        const diffY = Math.abs(touchMoveY - touchStartY); // Vertical movement calculate karo
+
+        // 🔥 CRITICAL FIX: Agar user upar-neeche scroll kar raha hai (Vertical), 
+        // toh swipe ko cancel kar do
+        if (diffY > 15 || diffY > Math.abs(diffX)) {
+            clearTimeout(pressTimer);
+            div.style.transform = "translateX(0px)"; // Bubble reset
+            return; // Yahin stop kar do
+        }
+
+        // Agar user side mein swipe kar raha hai, toh long-press cancel
+        if (Math.abs(diffX) > 10) clearTimeout(pressTimer);
+
+        // Right swipe animation (Limit 80px tak)
+        if (diffX > 0 && diffX < 80) {
+            div.style.transform = `translateX(${diffX}px)`;
+            div.style.transition = "none";
+        }
+    }, { passive: true });
+
+    div.addEventListener("touchend", () => {
+        clearTimeout(pressTimer);
+        const diff = touchMoveX - touchStartX;
+
+        // 🔥 Threshold 90px rakha hai taaki "Fast Scroll" mein galti se trigger na ho
+        if (diff > 90) { 
+            currentReplyData = { msgId: messageId, user: user, text: text };
+            document.getElementById("replyUser").textContent = user;
+            document.getElementById("replyText").textContent = text;
+            document.getElementById("replyPreview").classList.remove("hidden");
+            input.focus();
+
+            if (window.navigator.vibrate) window.navigator.vibrate(15);
+        }
+
+        // Reset bubble position smoothly
+        div.style.transition = "transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28)";
+        div.style.transform = "translateX(0px)";
+
+        touchStartX = 0;
+        touchMoveX = 0;
+    });
+
+    // Mouse listeners for Desktop (Inhe aise hi rehne do)
     div.addEventListener("mousedown", () => { pressTimer = setTimeout(showReactionPopup, 400); });
     div.addEventListener("mouseup", () => { clearTimeout(pressTimer); });
+    // --- End of Swipe/Longpress Logic ---
 
     wrapper.appendChild(div);
 
@@ -358,23 +500,34 @@ function updateMessageStatus(msgId, state) {
 
 function sendMessage() {
   const text = input.value.trim();
-  if (!text) return; // Agar input empty hai, toh kuch mat bhejo
+  if (!text) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-  if (!ws || ws.readyState !== WebSocket.OPEN) return; // Agar WebSocket open nahi hai, toh kuch mat bhejo
+  const messageID = Date.now();
 
-  // Unique message ID generate kar rahe hain
-  const messageID = Date.now();  // Yeh unique ID hai har message ke liye
-
-  // Message ko WebSocket ke through send karte hain
-  ws.send(JSON.stringify({
+  // Payload taiyar karo
+  const payload = {
     type: "chat",
     room: "public",
     text: text,
-    messageId: messageID  // Yeh ID message ke sath bhej rahe hain
-  }));
+    messageId: messageID
+  };
 
-  input.value = ""; // Input field ko clear karte hain
+  // Agar user kisi ko reply de raha hai, toh wo data bhi bhejo
+  if (currentReplyData) {
+    payload.replyTo = currentReplyData;
+  }
+
+  ws.send(JSON.stringify(payload));
+
+  input.value = ""; 
+
+  // Message bhejne ke baad reply mode band kar do
+  currentReplyData = null;
+  const preview = document.getElementById("replyPreview");
+  if (preview) preview.classList.add("hidden");
 }
+
   sendBtn.addEventListener("click", sendMessage);
   input.addEventListener("keydown", e => { if(e.key === "Enter") sendMessage(); });
 /* ================= SEND TYPING EVENT ================= */
@@ -426,10 +579,10 @@ if (data.type === "typing") {
         oldestMessageTime = data.messages[0].time;
 
         // Messages ko reverse karke addMessage call karo
-        // (Server ne already chronologically bhej diya hai, toh seedha loop chalao)
-        data.messages.forEach(msg => {
-          addMessage(msg.user, msg.text, true, msg.time, msg._id, msg.reactions, msg.status || "server", msg.avatar);
-        });
+data.messages.forEach(msg => {
+  addMessage(msg.user, msg.text, true, msg.time, msg._id, msg.reactions, msg.status || "server", msg.avatar, msg.replyTo); // <--- msg.replyTo add kiya
+});
+
 
         // 2. Scroll Position Maintain Karo (MAGIC STEP)
         if (!data.isInitial) {
@@ -453,16 +606,18 @@ if (data.type === "chat") {
      (data.msg.user || "").trim().toLowerCase() ===
      (window.currentUser || "").trim().toLowerCase();
 
-   addMessage(
-     data.msg.user,
-     data.msg.text,
-     false,
-     data.msg.time,
-     data.msg._id,
-     data.msg.reactions,
-     data.msg.status || "server",
-     data.msg.avatar
-   );
+addMessage(
+  data.msg.user,
+  data.msg.text,
+  false,
+  data.msg.time,
+  data.msg._id,
+  data.msg.reactions,
+  data.msg.status || "server",
+  data.msg.avatar,
+  data.msg.replyTo // <--- data.msg.replyTo add kiya
+);
+
 
    updateMessageStatus(data.msg._id, 'seen');
 
@@ -476,7 +631,26 @@ if (data.type === "chat") {
 
     if (data.type === "chat-update") updateMessage(data.msg);
     if (data.type === "status-update") updateMessageStatus(data.msgId, data.state);
-  }
+    // --- HANDLE MESSAGE DELETION ---
+    if (data.type === "msg-deleted") {
+      const msgDiv = document.querySelector(`[data-id='${data.msgId}']`);
+      if (msgDiv) {
+        const textEl = msgDiv.querySelector(".msg-text");
+        if (textEl) {
+          textEl.textContent = "🚫 This message was deleted";
+          textEl.style.fontStyle = "italic";
+          textEl.style.opacity = "0.6";
+        }
+        // Reaction popup hata do taaki delete ke baad koi react na kare
+        const popup = msgDiv.querySelector(".reaction-popup");
+        if (popup) popup.remove();
+
+        // Meta data (ticks) hata do
+        const status = msgDiv.querySelector(".status");
+        if (status) status.remove();
+      }
+    }
+}
 /* ================= SHOW TYPING ================= */
 function showTypingIndicator(name) {
   let existing = document.getElementById("typingIndicator");
@@ -555,7 +729,7 @@ function removeTypingIndicator() {
     requestAnimationFrame(() => {
       const scrollTop = chat.scrollTop;
       const atBottom = chat.scrollHeight - scrollTop <= chat.clientHeight + 10;
-      
+
       if (atBottom) { 
         unseenCount = 0; 
         updateNewMsgBtn(); 
@@ -584,5 +758,32 @@ function removeTypingIndicator() {
   document.addEventListener("click", () => {
     document.querySelectorAll(".reaction-popup.show").forEach(el => el.classList.remove("show"));
   });
-
+ // DOMContentLoaded ke andar kahin bhi add kar do
+ document.getElementById("cancelReply").onclick = () => {
+     currentReplyData = null;
+     document.getElementById("replyPreview").classList.add("hidden");
+ };
 });
+
+// 1. Long Press Context Menu ko har jagah se block karna (Input ko chhod kar)
+document.addEventListener('contextmenu', function(e) {
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+    }
+}, false);
+
+// 2. iOS Safari aur baki browsers par "Double Tap to Zoom" ko JS se rokna
+document.addEventListener('touchstart', function (event) {
+    if (event.touches.length > 1) {
+        event.preventDefault(); 
+    }
+}, { passive: false }); // <--- Check karo ye false hona chahiye
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (event) {
+    let now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        event.preventDefault(); 
+    }
+    lastTouchEnd = now;
+}, { passive: false }); // <--- Yahan bhi false add kar do safety ke liye
