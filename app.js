@@ -31,9 +31,11 @@ if(logoutBtn) {
     localStorage.removeItem("chatUser");
     window.currentUser = null;
     window.currentAvatar = null;
-    window.location.reload(); // Gemini style → page reload karenge
+    // Ab refresh nahi, seedha server ko request bhejenge logout ke liye
+    window.location.href = "/logout"; 
   });
 }
+
   /* ================= GLOBAL STATE ================= */
   const MAX_MESSAGES_IN_DOM = 500;
   let ws;
