@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Isolophilia | Elite Access</title>
+<!--    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">-->
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Inter:wght@400;900&display=swap" rel="stylesheet">
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #020202;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+    /* Copy aur Selection band karne ke liye */
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none;     /* IE 10+ */
+    user-select: none;         /* Standard syntax */
+    
+    /* Image dragging band karne ke liye */
+    -webkit-user-drag: none;
+    
+    /* Mobile par long press menu band karne ke liye */
+    -webkit-touch-callout: none;
+    /* ... tere baki locks ... */
+    touch-action: none; /* Ye sabse khatarnak lock hai zoom ke liye */
+        }
+        /* The Animated Card */
+        .promo-card {
+            background: #080808;
+            border-radius: 40px;
+            padding: 50px 40px;
+            max-width: 400px;
+            width: 85%;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 247, 255, 0.05);
+            overflow: hidden;
+            border: 1px solid rgba(0, 247, 255, 0.1);
+            animation: smoothEntry 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        /* Neon Trace Animation */
+        .promo-card::before {
+            content: "";
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: conic-gradient(transparent, transparent, transparent, #00f7ff);
+            animation: rotate 3s linear infinite;
+            z-index: 0;
+        }
+        .promo-card::after {
+            content: "";
+            position: absolute;
+            inset: 3px;
+            background: #080808;
+            border-radius: 37px;
+            z-index: 0;
+        }
+        /* Scanner Light Effect */
+        .scanner {
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, rgba(0, 247, 255, 0.1), transparent);
+            z-index: 1;
+            animation: scan 4s infinite linear;
+        }
+        @keyframes scan {
+            0% { top: -100%; }
+            100% { top: 100%; }
+        }
+        @keyframes rotate {
+            100% { transform: rotate(360deg); }
+        }
+.content {
+    position: relative;
+    z-index: 2;
+    opacity: 0; /* Shuru me dikhega nahi */
+    animation: contentFade 1s ease-out 0.5s forwards; /* 0.5s ka delay taaki card pehle aa jaye */
+}
+
+@keyframes contentFade {
+    from { opacity: 0; filter: blur(5px); }
+    to { opacity: 1; filter: blur(0px); }
+}
+        /* Circle Logo with Glow */
+        .logo-circle {
+            width: 95px;
+            height: 95px;
+            margin: 0 auto 15px;
+            background: #000;
+            border-radius: 50%;
+            padding: 0px;
+            border: 2px solid #00f7ff;
+            box-shadow: 0 0 5px rgba(0, 247, 255, 0.4);
+            animation: pulse 3s infinite ease-in-out;
+            overflow: hidden;
+        }
+        
+        .logo-circle img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 247, 255, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 10px rgba(0, 247, 255, 0.7); }
+        }
+h1 {
+    font-family: 'Michroma', sans-serif; /* Futuristic & Bold Font */
+    font-weight: 900;
+    font-size: 28px; /* Thoda bada aur bold */
+    letter-spacing: 2px; /* Elite spacing */
+    margin: 0;
+    text-transform: uppercase;
+    
+    /* Designer Gradient Effect */
+    background: linear-gradient(to bottom, #fff 40%, #00f7ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}    
+h1 {
+    background: linear-gradient(to right, #fff 20%, #00f7ff 50%, #fff 80%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shine 4s linear infinite;
+}
+
+@keyframes shine {
+    to { background-position: 200% center; }
+}
+
+
+        /* Redesigned Beta Info */
+        .beta-tag {
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 10px;
+            color: #00f7ff;
+            border: 1px solid rgba(0, 247, 255, 0.4);
+            padding: 4px 12px;
+            border-radius: 20px;
+            letter-spacing: 2px;
+            font-weight: 700;
+            background: rgba(0, 247, 255, 0.05);
+        }
+        .status {
+            color: #00ff7f;
+            font-size: 11px;
+            margin-top: 15px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff7f; /* Asli LED color */
+            border-radius: 50%;
+            position: relative;
+            /* Isse dot ek bulb ki tarah dikhega */
+            box-shadow: 0 0 10px #00ff7f, 0 0 20px rgba(0, 255, 127, 0.4);
+        }
+
+        /* 1. Dot ka "Aura" (Atmospheric Glow) */
+        .online-dot::before {
+            content: "";
+            position: absolute;
+            inset: -5px;
+            border-radius: 50%;
+            background: rgba(0, 255, 127, 0.2);
+            filter: blur(5px);
+            animation: breathe 3s infinite ease-in-out;
+        }
+
+        /* 2. Advanced Ripple (Tez nikal kar dhire se fade hona) */
+        .online-dot::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 1.5px solid #00ff7f;
+            animation: elite-ripple 2.5s infinite cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+
+        @keyframes elite-ripple {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(4.5); opacity: 0; }
+        }
+
+
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            margin: 30px 0;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #aaa;
+            margin: 18px 0;
+            font-size: 13.5px;
+            transition: 0.4s ease;
+            /* Floating Animation dalo */
+            animation: float-feature 4s infinite ease-in-out;
+        }
+
+        /* Har feature item thoda alag time par move karega */
+        .feature-item:nth-child(2) { animation-delay: 0.5s; }
+        .feature-item:nth-child(3) { animation-delay: 1s; }
+        .feature-item:nth-child(4) { animation-delay: 1.5s; }
+
+        /* Hover karne par icon aur text chamkega */
+        .feature-item:hover {
+            color: #fff;
+            transform: translateX(8px); /* Halka sa right slide */
+            filter: drop-shadow(0 0 8px rgba(0, 247, 255, 0.6));
+        }
+
+        /* Floating Keyframes */
+        @keyframes float-feature {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); } /* Upar niche movement */
+        }
+        .feature-item i {
+            color: #00f7ff;
+            font-size: 15px;
+            width: 20px;
+            text-align: center;
+            /* Icon glow effect */
+            text-shadow: 0 0 10px rgba(0, 247, 255, 0.5);
+            transition: 0.3s;
+        }
+
+        .feature-item:hover i {
+            transform: scale(1.3) rotate(10deg); /* Mouse le jane par icon bada aur rotate hoga */
+            text-shadow: 0 0 15px #00f7ff;
+        }
+
+         .version-text {
+            margin-top: 25px;
+            font-size: 10px;
+            color: #333;
+            letter-spacing: 2px;
+            font-weight: 800;
+        }
+    /* 1. Colorful Google Icon ki Setting */
+    .g-icon {
+        font-size: 20px;
+        background: conic-gradient(from -45deg, #ea4335 110deg, #4285f4 90deg 180deg, #34a853 180deg 270deg, #fbbc05 270deg);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: bold;
+    }
+
+/* --- Professional Deep Blue Liquid Button --- */
+.login-btn {
+    display: flex;
+    height: 17px;
+    padding: 0 20px;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    /* Isme sirf Deep Blue aur Black ka mel hai */
+    background: linear-gradient(135deg, #020202 0%, #001f3f 30%, #0074D9 60%, #050505 100%);
+    background-size: 200% auto; 
+    color: #fff;
+    text-decoration: none;
+    padding: 18px;
+    border-radius: 15px;
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: 0.4s ease;
+    border: 1px solid rgba(0, 116, 217, 0.2); /* Match karta hua border */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    outline: none;
+}
+
+/* Hover: Liquid Gradient Flow */
+.login-btn:hover {
+    background-position: right center; /* Gradient dheere se shift hoga */
+    transform: translateY(-2px);
+    border: 1px solid rgba(0, 116, 217, 0.5);
+    /* Cyan ki jagah Deep Blue Glow */
+    box-shadow: 0 10px 30px rgba(0, 116, 217, 0.3); 
+}
+
+/* Clicking Animation: Solid Press */
+.login-btn:active {
+    transform: scale(0.97); /* Halka sa dabega */
+    box-shadow: 0 2px 10px rgba(0, 116, 217, 0.5);
+    transition: 0.1s;
+}
+@keyframes smoothEntry {
+    0% {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+        filter: blur(10px); /* Shuru mein halka dhundla */
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0px); /* End mein ekdum crystal clear */
+    }
+}
+/* Logo, Title, aur Status ka sequence */
+.logo-circle { opacity: 0; animation: contentFade 0.8s ease-out 0.7s forwards; }
+h1 { opacity: 0; animation: contentFade 0.8s ease-out 0.9s forwards; }
+.beta-tag { opacity: 0; animation: contentFade 0.8s ease-out 1.1s forwards; }
+.status { opacity: 0; animation: contentFade 0.8s ease-out 1.2s forwards; }
+
+/* Features aur Button ka sequence */
+.features { opacity: 0; animation: contentFade 0.8s ease-out 1.4s forwards; }
+.login-btn { opacity: 0; animation: contentFade 0.8s ease-out 1.6s forwards; }
+.version-text { opacity: 0; animation: contentFade 0.8s ease-out 1.8s forwards; }
+
+
+    </style>
+</head>
+<!--<body>-->
+<body oncontextmenu="return false;">
+<div class="promo-card">
+<!--    <div class="scanner"></div>-->
+    <div class="content">
+        <div class="logo-circle">
+            <img src="logo.png" alt="Logo">
+        </div>
+        <h1>ISOLOPHILIA</h1>
+        <div class="beta-tag">STABLE v1.09 ACCESS</div>
+        
+        <div class="status">
+            <div class="online-dot"></div> ENCRYPTED CONNECTION
+        </div>
+        <hr>
+        <div class="features">
+            <div class="feature-item"><i class="fas fa-bolt"></i> <span>Real-time smooth messaging</span></div>
+            <div class="feature-item"><i class="fas fa-magic"></i> <span>Interactive emoji reactions</span></div>
+            <div class="feature-item"><i class="fas fa-bolt-lightning"></i> <span>WhatsApp style swipe-to-reply</span></div>
+            <div class="feature-item"><i class="fas fa-fingerprint"></i> <span>Secure Google Authentication</span></div>
+        </div>
+<a href="/auth/google" class="login-btn">
+    <i class="fab fa-google g-icon"></i> 
+    <span>CONTINUE TO HUB</span>
+</a>
+
+<p class="version-text">EST. 2026 || PREMIUM OVERLAY</p>
+    </div>
+</div>
+</body>
+</html>
