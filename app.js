@@ -191,16 +191,26 @@ function addMessage(user, text, isHistory = false, time = Date.now(), messageId 
     const isGrouped = lastMessageUser === user && timeDiff <= GROUP_TIME_LIMIT && !isHistory;
     div.className = (isMe ? "message sent" : "message received") + (isGrouped ? " grouped" : " new-group");
 
-    if (!isMe) {
+           if (!isMe) {
         const avatarEl = document.createElement("img");
         avatarEl.className = "avatar";
         if (avatar) {
             avatarEl.src = avatar;
             avatarEl.onerror = () => { avatarEl.src = "/default-avatar.png"; };
         }
+
+        // ✅ YE MISSING THA: Profile open karne ka trigger
+        avatarEl.style.cursor = "pointer";
+        avatarEl.onclick = () => {
+            if (typeof window.openProfile === "function") {
+                window.openProfile(user, avatar);
+            }
+        };
+
         if (isGrouped) avatarEl.classList.add("avatar-placeholder");
         wrapper.appendChild(avatarEl);
     }
+
 
     if (!isGrouped) {
         const nameEl = document.createElement("div");
