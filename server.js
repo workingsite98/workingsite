@@ -171,14 +171,31 @@ app.get("/logout", (req, res) => {
   });
 });
 
+/* ================= ROUTES (MODIFIED) ================= */
+
+// Ye function check karta hai ki user logged in hai ya nahi
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
-  res.redirect("/auth/google");
+  // Agar login nahi hai, toh seedha Google par mat bhejo, Landing page dikhao
+  res.sendFile(__dirname + "/landing.html"); 
 }
 
-app.get("/", ensureAuth, (req, res) => {
+// Main Route: Yahan decide hoga ki kya dikhana hai
+app.get("/", (req, res) => {
+  if (req.isAuthenticated()) {
+    // Agar banda login hai, toh Chat Hub (index.html) bhejo
+    res.sendFile(__dirname + "/index.html");
+  } else {
+    // Agar login nahi hai, toh tera Premium Landing Page dikhao
+    res.sendFile(__dirname + "/landing.html");
+  }
+});
+
+// Ye zaroori hai taaki dashboard ke andar auth check rahe
+app.get("/chat", ensureAuth, (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
+
 
 app.use(express.static(__dirname));
 
