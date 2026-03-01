@@ -176,13 +176,23 @@ app.get(
   (req, res) => res.redirect("/")
 );
 
-app.get("/logout", (req, res) => {
-  req.logout(() => {
-    req.session.destroy(() => {
-      res.redirect("/");
+app.get("/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    
+    // Session ko database se poori tarah khatam karo
+    req.session.destroy((err) => {
+      if (err) console.error("❌ Session destroy error:", err);
+      
+      // Browser ki cookie saaf karo (connect.sid)
+      res.clearCookie("connect.sid"); 
+      
+      // Phir seedha Landing page par bhejo
+      res.redirect("/"); 
     });
   });
 });
+
 
 /* ================= ROUTES (MODIFIED) ================= */
 
