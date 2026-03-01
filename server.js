@@ -16,7 +16,20 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 
 const app = express();
-app.use(helmet());
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "data:", "https://*.googleusercontent.com", "https://res.cloudinary.com"],
+        "connect-src": ["'self'", "ws:", "wss:"],
+      },
+    },
+  })
+);
+
 
 /* ================= RATE LIMIT ================= */
 const limiter = rateLimit({
