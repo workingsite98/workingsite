@@ -765,6 +765,20 @@ function removeTypingIndicator() {
      currentReplyData = null;
      document.getElementById("replyPreview").classList.add("hidden");
  };
+// Profile Modal Logic
+function openProfile(name, avatar, email) {
+    document.getElementById("modalName").textContent = name;
+    document.getElementById("modalAvatar").src = avatar || "/default-avatar.png";
+    document.getElementById("modalEmail").textContent = email || "Community Member";
+    document.getElementById("userModal").classList.remove("hidden");
+}
+
+// Close karne ka logic
+document.getElementById("closeModal").onclick = () => {
+    document.getElementById("userModal").classList.add("hidden");
+};
+
+
 });
 
 // 1. Long Press Context Menu ko har jagah se block karna (Input ko chhod kar)
