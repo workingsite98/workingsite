@@ -863,13 +863,6 @@ if (toggleBtn && sidebar) {
 
 });
 
-// 1. Long Press Context Menu ko har jagah se block karna (Input ko chhod kar)
-document.addEventListener('contextmenu', function(e) {
-    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-    }
-}, false);
-
 // 2. iOS Safari aur baki browsers par "Double Tap to Zoom" ko JS se rokna
 document.addEventListener('touchstart', function (event) {
     if (event.touches.length > 1) {
@@ -885,3 +878,64 @@ document.addEventListener('touchend', function (event) {
     }
     lastTouchEnd = now;
 }, { passive: false }); // <--- Yahan bhi false add kar do safety ke liye
+/* ================= SECURITY & ANTI-ANNOYING FEATURES ================= */
+
+// 1. Right Click (Context Menu) Block
+document.addEventListener('contextmenu', (e) => {
+    // Input field par right click allow rakhte hain taaki paste kar sakein agar zaroorat ho
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+    }
+}, false);
+
+// 2. Zoom Block (Ctrl + Plus/Minus/Wheel)
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+document.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+// 3. Inspect Element & DevTools Shortcuts Block
+document.addEventListener('keydown', (e) => {
+    // F12 block
+    if (e.key === 'F12') {
+        e.preventDefault();
+    }
+    // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U (View Source)
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) {
+        e.preventDefault();
+    }
+    if (e.ctrlKey && e.key === 'u') {
+        e.preventDefault();
+    }
+});
+/* ================= ANTI-INSPECT TRAP ================= */
+
+// 1. Debugger Trap: Ise uncomment tabhi karna jab site live ho
+setInterval(() => {
+    // debugger; 
+}, 1000);
+
+// 2. Smart Resize Detection (Sirf Desktop ke liye)
+window.addEventListener('resize', () => {
+    // Mobile par keyboard khulne par height change hoti hai, 
+    // isliye width check zaroori hai Inspect Element pakadne ke liye.
+    const threshold = 200;
+    const isDevToolsOpen = (window.outerWidth - window.innerWidth) > threshold || 
+                           (window.outerHeight - window.innerHeight) > threshold;
+
+    // Sirf tab blur karo jab screen ka size kaafi bada ho (Desktop)
+    if (window.innerWidth > 768 && isDevToolsOpen) {
+        document.body.style.filter = "blur(15px)";
+        document.body.style.pointerEvents = "none"; // Click bhi block kar do
+    } else {
+        document.body.style.filter = "none";
+        document.body.style.pointerEvents = "auto";
+    }
+}); // <--- Yahan pehle function khatam ho raha tha, ab Event Listener bhi band hai.

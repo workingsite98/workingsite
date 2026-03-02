@@ -2,13 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+ <meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Isolophilia Community</title>
-   <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: https://*.googleusercontent.com https://res.cloudinary.com;">
+<!--   <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: https://*.googleusercontent.com https://res.cloudinary.com;"> -->
+   <meta http-equiv="Content-Security-Policy" content="
+  default-src 'self'; 
+  script-src 'self' 'unsafe-inline'; 
+  style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; 
+  img-src 'self' data: https://*.googleusercontent.com https://res.cloudinary.com; 
+  font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;
+  connect-src 'self' ws: wss:;
+">
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<noscript>
+  <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; color:#00f7ff; z-index:9999; display:flex; align-items:center; justify-content:center; font-family:sans-serif; text-align:center;">
+    <h1>SECURITY ALERT</h1>
+    <p>JavaScript is required to access Isolophilia Community.<br>Please enable it to continue.</p>
+  </div>
+</noscript>
 
   <!-- HEADER START -->
   <header class="chat-header">
