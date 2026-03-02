@@ -31,9 +31,11 @@ if(logoutBtn) {
     localStorage.removeItem("chatUser");
     window.currentUser = null;
     window.currentAvatar = null;
-    window.location.reload(); // Gemini style → page reload karenge
+    // Ab refresh nahi, seedha server ko request bhejenge logout ke liye
+    window.location.href = "/logout"; 
   });
 }
+
   /* ================= GLOBAL STATE ================= */
   const MAX_MESSAGES_IN_DOM = 500;
   let ws;
@@ -55,7 +57,7 @@ if(logoutBtn) {
   const GROUP_TIME_LIMIT = 5 * 60 * 1000; // 5 minutes
   // Line 56 ke paas add karo
   let currentReplyData = null; 
-
+  let onlineUsersList = []; // 🆕 Online users ka data store karne ke liye
 
   const chat = document.getElementById("chat");
   const input = document.getElementById("messageInput");
@@ -189,16 +191,26 @@ function addMessage(user, text, isHistory = false, time = Date.now(), messageId 
     const isGrouped = lastMessageUser === user && timeDiff <= GROUP_TIME_LIMIT && !isHistory;
     div.className = (isMe ? "message sent" : "message received") + (isGrouped ? " grouped" : " new-group");
 
-    if (!isMe) {
+           if (!isMe) {
         const avatarEl = document.createElement("img");
         avatarEl.className = "avatar";
         if (avatar) {
             avatarEl.src = avatar;
             avatarEl.onerror = () => { avatarEl.src = "/default-avatar.png"; };
         }
+
+        // ✅ YE MISSING THA: Profile open karne ka trigger
+        avatarEl.style.cursor = "pointer";
+        avatarEl.onclick = () => {
+            if (typeof window.openProfile === "function") {
+                window.openProfile(user, avatar);
+            }
+        };
+
         if (isGrouped) avatarEl.classList.add("avatar-placeholder");
         wrapper.appendChild(avatarEl);
     }
+
 
     if (!isGrouped) {
         const nameEl = document.createElement("div");
@@ -279,7 +291,7 @@ msgEl.className = "msg-text";
         const btn = document.createElement("span");
         btn.className = "reaction-emoji";
         btn.textContent = emoji;
-        
+
         const reactedUsers = reactions?.[emoji] || [];
         if (reactedUsers.includes(window.currentUser)) {
             btn.style.background = "rgba(0, 247, 255, 0.25)";
@@ -301,7 +313,7 @@ msgEl.className = "msg-text";
     function showReactionPopup() {
         document.querySelectorAll(".reaction-popup.show").forEach(el => el.classList.remove("show"));
         const rect = div.getBoundingClientRect();
-        
+
         // Vertical positioning
         if (rect.top < 120) {
             reactContainer.style.top = "110%";
@@ -363,7 +375,7 @@ msgEl.className = "msg-text";
             div.style.transform = `translateX(${diffX}px)`;
             div.style.transition = "none";
         }
-        
+
         touchMoveX = currentX;
     }, { passive: true });
 
@@ -515,10 +527,10 @@ function sendMessage() {
 
   // 4. UI Clean up (Message bhejne ke baad hi reset karo)
   input.value = "";
-  
+
   // Reply data clear karo taaki agla message normal jaye
   currentReplyData = null; 
-  
+
   // Preview hide karo
   const preview = document.getElementById("replyPreview");
   if (preview) {
@@ -551,11 +563,13 @@ input.addEventListener("input", () => {
     const data = JSON.parse(event.data);
 
 if (data.type === "me") {
-  window.currentUser = data.name || data.email; // ✅ FIX
+  window.currentUser = data.name || data.email;
+  window.currentEmail = data.email; // ✅ Ye line add karo sidebar check ke liye
   window.currentAvatar = data.avatar || "";
-  localStorage.setItem("chatUser", window.currentUser); // ✅ FIX
+  localStorage.setItem("chatUser", window.currentUser);
   return;
 }
+
 /* ================= RECEIVE TYPING ================= */
 if (data.type === "typing") {
   if (data.isTyping) {
@@ -565,8 +579,15 @@ if (data.type === "typing") {
   }
 }
 
-    if (data.type === "online-users") {
-      document.getElementById("online").textContent = `${data.count} Live`;
+    // 🆕 Sidebar update logic
+    if (data.type === "online-users-list") {
+      // Top bar wala count update karo
+      const onlineEl = document.getElementById("online");
+      if (onlineEl) onlineEl.textContent = `${data.count} Live`;
+
+      // Sidebar ki list update karo
+      onlineUsersList = data.users;
+      updateSidebarUI(); 
     }
 
     if (data.type === "history") {
@@ -763,6 +784,83 @@ function removeTypingIndicator() {
      currentReplyData = null;
      document.getElementById("replyPreview").classList.add("hidden");
  };
+/* ================= PROFILE MODAL LOGIC ================= */
+window.openProfile = function(name, avatar) {
+    const modal = document.getElementById("userModal");
+    const mName = document.getElementById("modalName");
+    const mAvatar = document.getElementById("modalAvatar");
+    const mEmail = document.getElementById("modalEmail");
+
+    if (modal && mName && mAvatar) {
+        mName.textContent = name;
+        mAvatar.src = avatar || "logo.png";
+        mEmail.textContent = "Community Member"; // Baad mein email bhi pass kar sakte hain
+        modal.classList.remove("hidden");
+    }
+};
+
+const closeModalBtn = document.getElementById("closeModal");
+if (closeModalBtn) {
+    closeModalBtn.onclick = () => {
+        document.getElementById("userModal").classList.add("hidden");
+    };
+}
+  /* ================= SIDEBAR UI RENDERER ================= */
+  function updateSidebarUI() {
+    const sidebarContainer = document.querySelector(".sidebar-content"); // Check karo ye ID/Class tere HTML mein ho
+    if (!sidebarContainer) return;
+
+    sidebarContainer.innerHTML = ""; // Purani list saaf karo
+
+    onlineUsersList.forEach(user => {
+      const userRow = document.createElement("div");
+      userRow.className = "sidebar-user-row";
+      
+      // Agar wo khud hai (Me), toh thoda alag dikhao (Optional)
+      const isMe = user.email === window.currentEmail; // Make sure currentEmail set ho
+
+      userRow.innerHTML = `
+        <div class="sidebar-avatar-wrapper">
+          <img src="${user.avatar || 'default-avatar.png'}" class="sidebar-avatar" onerror="this.src='default-avatar.png'">
+          <span class="online-status-dot"></span>
+        </div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-name">${user.name}</span>
+          <span class="sidebar-user-status">Online</span>
+        </div>
+      `;
+
+      // Click karne par us bande ka profile modal khul jaye
+      userRow.onclick = () => {
+        if (typeof window.openProfile === "function") {
+          window.openProfile(user.name, user.avatar);
+        }
+      };
+
+      sidebarContainer.appendChild(userRow);
+    });
+  }
+
+/* ================= SIDEBAR TOGGLE (INSIDE 3-DOT) ================= */
+const toggleBtn = document.getElementById("toggleSidebar");
+const sidebar = document.querySelector(".sidebar");
+
+if (toggleBtn && sidebar) {
+  toggleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sidebar.classList.toggle("active");
+    if(menuDropdown) menuDropdown.classList.remove("show");
+  });
+
+  // ✅ YE ADD KARO: Sidebar ke bahar click karne par sidebar band ho jaye
+  document.addEventListener("click", (e) => {
+    if (sidebar.classList.contains("active") && !sidebar.contains(e.target) && e.target !== toggleBtn) {
+      sidebar.classList.remove("active");
+    }
+  });
+}
+
+
 });
 
 // 1. Long Press Context Menu ko har jagah se block karna (Input ko chhod kar)

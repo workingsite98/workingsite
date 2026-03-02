@@ -2,25 +2,95 @@
   hidden; background: #000; font-family: 'Inter', 
   system-ui, -apple-system, sans-serif;
 }
-
-/* ===== HEADER BASE ===== */ .chat-header {
+/* ===== HEADER BASE (LAYOUT PRESERVED - COLOR UPDATED) ===== */
+.chat-header {
   position: relative;
   margin: 5px;
   padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background:#222;
-  position:sticky;
-  top:0;
-  z-index:10;
+  
+  /* Color Update: Background ko thoda contrast diya taaki background se alag dikhe */
+  background: rgba(26, 28, 30, 0.75); 
+  
+  /* Border: Landing page vibe ke liye halka neon touch */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(0, 247, 255, 0.2); 
+  
+  /* Shadow: Depth dene ke liye */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  
+  position: sticky;
+  top: 0;
+  z-index: 10;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-radius: 22px;
-  overflow: hidden;
+  overflow: visible !important;
+  z-index: 1000;
+}
+/* ===== SHIMMERING NEON TITLE (MODIFIED) ===== */
+.title-row h1 {
+  font-family: 'Michroma', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  
+  /* --- Step 1: Complex Gradient banaya (White-Cyan-White) --- */
+  background: linear-gradient(
+    to right, 
+    #ffffff 20%,   /* Shuru mein White */
+    #00f7ff 40%,   /* Beech mein Cyan (Roshni) */
+    #00f7ff 60%,   /* Cyan thoda lamba rahe */
+    #ffffff 80%    /* End mein wapas White */
+  );
+  
+  /* --- Step 2: Background size bada kiya (Isse gradient shift hoga) --- */
+  background-size: 200% auto;
+  
+  /* --- Step 3: Text Clip (Zaroori hai) --- */
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  
+  /* --- Step 4: Subtle Glow dalo --- */
+  filter: drop-shadow(0 0 5px rgba(0, 247, 255, 0.4));
+  
+  /* --- Step 5: Animation trigger karo (Smooth & Linear) --- */
+  animation: shineTitle 3s linear infinite;
+  
+  /* Tera baki code (font-size wagera) yahan rahega */
+  font-size: 14px; 
+  letter-spacing: 1px;
 }
 
+/* ===== TEXT SHINE KEYFRAMES ===== */
+@keyframes shineTitle {
+  to {
+    /* Gradient position ko shift kar diya */
+    background-position: 200% center; 
+  }
+}
 .chat-header::after {
+  content: "";
+  /* 1. 'fixed' ki jagah 'absolute' karo taaki ye header ke andar rahe */
+  position: absolute; 
+  
+  /* 2. 'bottom' ko adjust karo taaki line header ke bottom edge par chipki rahe */
+  bottom: 0; 
+  left: 15%;
+  width: 70%;
+  height: 1.5px;
+  
+  background: linear-gradient(90deg, transparent, #00f7ff, transparent);
+  box-shadow: 0 0 10px rgba(0,247,255,0.6);
+  pointer-events: none;
+  
+  /* 3. Safety ke liye z-index check */
+  z-index: 1; 
+}
+
+/*.chat-header::after {
   content: "";
   position: fixed;
   bottom: -5%;
@@ -30,7 +100,8 @@
   background: linear-gradient(90deg, transparent, #00f7ff, transparent);
   box-shadow: 0 0 10px rgba(0,247,255,0.6);
   pointer-events: none;
-}
+}*/
+
 
 /* ===== LEFT SIDE ===== */
 .header-left {
@@ -131,7 +202,6 @@
   color: #00ff7f;
   margin: 2px 0 0;
 }
-
 /* ===== MENU ===== */
 .menu {
   font-size: 20px;
@@ -141,7 +211,6 @@
   position: relative;
   z-index: 100;
 }
-
 /* ===== CHAT WRAPPER ===== */
 .chat-wrapper {
   position: fixed;
@@ -210,6 +279,9 @@
 .message.received {
   align-self: flex-start;
   background: linear-gradient(180deg, #1C1D1F 0%, #17181A 50%, #121416 100%); 
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   color: #F2F5F7; 
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-top-left-radius: 6px;
@@ -474,51 +546,69 @@
 .avatar-placeholder {
   visibility: hidden;
 }
+/* ===== MENU DROPDOWN FIX ===== */
 .menu {
   position: relative;
   cursor: pointer;
-  font-size: 24px; /* 3-dot icon visible */
+  z-index: 1000; /* Sabse upar dikhne ke liye */
 }
 
 .menu-dropdown {
   position: absolute;
-  top: 0;
-  right: -200px; /* start off-screen */
-  background: #515756;
-  color: #fff;
-  border-radius: 9px;
+  /* Header ke bilkul neeche aane ke liye */
+  top: 45px; 
+  right: 0;
+  
+  background: #1c1d1f; /* Dark theme se match karta color */
+  border: 1px solid rgba(0, 247, 255, 0.2);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  min-width: 150px;
-  transition: right 0.3s ease;
-  z-index: 1000;
+  min-width: 160px;
+  
+  /* Initial state: Chupa hua aur thoda niche */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
 }
 
 .menu-dropdown.show {
-  right: 0; /* slide in */
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0); /* Smooth slide down effect */
 }
 
+/* Dropdown ke buttons ko align karne ke liye */
 .menu-dropdown button {
   background: transparent;
   border: none;
-  color: #ff4d4d;
+  color: #fff;
   padding: 12px 16px;
   text-align: left;
   cursor: pointer;
-  font-weight: 900;
-  transition: background 0.3s ease, color 0.3s ease; /* 🔥 smooth hover */
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  transition: background 0.2s;
 }
 
 .menu-dropdown button:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(0, 247, 255, 0.1);
+  color: #00f7ff;
 }
 
+/* Logout button ka specific color */
 #logoutBtn {
-  display: flex;
-  align-items: center;
-  gap: 3px; /* icon aur text ke beech gap */
-  font-weight:900;
+  color: #ff4d4d !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 #newMsgBtn {
   position: absolute;
   bottom: 0px;
@@ -899,4 +989,254 @@ position: absolute;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-	
+/* Message ke niche dikhne wale emojis */
+/* --- WHATSAPP FLOATING REACTIONS --- */
+.reactions-wrapper {
+    position: absolute;
+    bottom: -12px; /* Bubble ke niche nikal jayega */
+    display: flex;
+    gap: 3px;
+    z-index: 10; /* Sabse upar dikhega */
+    pointer-events: none; /* Click bubble pe hi jaye */
+}
+
+/* Received (Left) message ke liye position */
+.message.received .reactions-wrapper {
+    left: 45px; /* Avatar se thoda aage */
+}
+
+/* Sent (Right) message ke liye position */
+.message.sent .reactions-wrapper {
+    right: 10px;
+}
+
+.reaction-badge {
+    background: #202c33; /* Dark WhatsApp theme color */
+    border: 1.5px solid #0b141a; /* Bubble ke border se match karega */
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    pointer-events: auto; /* Badge pe click kaam kare */
+}
+
+.reaction-badge small {
+    font-size: 10px;
+    color: #aebac1;
+    font-weight: bold;
+}
+.modal {
+  position: fixed; z-index: 2000;
+  left: 0; top: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.85); /* Blackish blur background */
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px); /* Chat blur ho jayegi piche */
+}
+
+.modal-content {
+  background: rgba(25, 25, 25, 0.9);
+  border: 1px solid rgba(0, 247, 255, 0.3); /* Neon border */
+  border-radius: 25px;
+  width: 85%; max-width: 320px;
+  overflow: hidden;
+  animation: modalPop 0.3s ease-out;
+}
+
+@keyframes modalPop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-banner {
+  height: 80px;
+  background: linear-gradient(45deg, #00f7ff, #0066ff); /* Neon gradient */
+}
+
+.modal-body {
+  padding: 0 20px 20px 20px;
+  text-align: center;
+  margin-top: -50px; /* Photo ko banner ke upar chadhane ke liye */
+}
+
+#modalAvatar {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  border: 4px solid #191919;
+  box-shadow: 0 0 20px rgba(0, 247, 255, 0.4);
+  background: #222;
+}
+
+#modalName { color: #fff; margin: 15px 0 5px 0; font-size: 1.4rem; }
+#modalEmail { color: #aaa; font-size: 0.9rem; margin-bottom: 20px; }
+
+#closeModal {
+  background: transparent;
+  color: #00f7ff;
+  border: 1px solid #00f7ff;
+  padding: 10px 25px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+#closeModal:hover { background: rgba(0, 247, 255, 0.1); }
+/* Container for avatar and dot */
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* The Online Dot */
+.online-dot {
+  width: 12px;
+  height: 12px;
+  background-color: #00ff00; /* Neon Green */
+  border: 2px solid #1a1a1a; /* Background se match karta border */
+  border-radius: 50%;
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  box-shadow: 0 0 8px #00ff00;
+  display: none; /* Default hidden */
+}
+
+/* Jab user online ho toh dot dikhao */
+.is-online .online-dot {
+  display: block;
+}
+
+/* Container jo avatar aur dot ko hold karega */
+.avatar-container {
+    position: relative;
+    display: inline-block;
+    width: 40px;  /* Jitna bada tera avatar hai */
+    height: 40px;
+    margin-right: 8px;
+}
+
+/* Tera purana avatar style (bas width/height check kar lena) */
+.avatar-container .avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Neon Green Dot ka Asli Logic */
+.online-dot {
+    width: 12px;
+    height: 12px;
+    background-color: #00ff00; /* Ekdum chamakta hara */
+    border: 2px solid #1a1a1a; /* Background color se match karta border */
+    border-radius: 50%;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    box-shadow: 0 0 8px #00ff00; /* Glow effect */
+    z-index: 10;
+}
+
+/* Jab messages grouped honge toh placeholder ke andar dot chhupa do */
+.avatar-placeholder .online-dot {
+    display: none !important;
+}
+.sidebar-content {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sidebar-user-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.sidebar-user-row:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-avatar-wrapper {
+    position: relative;
+    width: 40px;
+    height: 40px;
+}
+
+.sidebar-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid #00f7ff;
+}
+
+.online-status-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    background: #00ff00;
+    border: 2px solid #1a1a1a;
+    border-radius: 50%;
+    box-shadow: 0 0 5px #00ff00;
+}
+
+.sidebar-user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-user-name {
+    font-size: 0.9rem;
+    color: #fff;
+    font-weight: 500;
+}
+
+.sidebar-user-status {
+    font-size: 0.7rem;
+    color: #00f7ff;
+    opacity: 0.8;
+}
+/* Mobile Sidebar Toggle Logic */
+@media (max-width: 768px) {
+  .sidebar {
+    position: absolute;
+    left: -100%; /* Shuruat mein screen ke bahar */
+    z-index: 2000;
+    height: 100%;
+    background: #121212; /* Dark background */
+    transition: left 0.3s ease;
+  }
+
+  .sidebar.active {
+    left: 0; /* Jab button click ho toh screen par aa jaye */
+  }
+}
+/* Mobile View setup */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: -280px; /* Screen ke bahar */
+    top: 60px;
+    height: calc(100% - 60px);
+    width: 260px;
+    z-index: 999;
+    background: #121212;
+    transition: left 0.3s ease;
+  }
+
+  /* Jab JS 'active' class lagayega tab ye dikhega */
+  .sidebar.active {
+    left: 0;
+  }
+}

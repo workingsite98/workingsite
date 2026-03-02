@@ -16,7 +16,20 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 
 const app = express();
-app.use(helmet());
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "data:", "https://*.googleusercontent.com", "https://res.cloudinary.com"],
+        "connect-src": ["'self'", "ws:", "wss:"],
+      },
+    },
+  })
+);
+
 
 /* ================= RATE LIMIT ================= */
 const limiter = rateLimit({
@@ -94,7 +107,7 @@ const sessionMiddleware = session({
     mongoUrl: MONGO_URI,
     ttl: 14 * 24 * 60 * 60,
   }),
- /* cookie: {
+/*  cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite:
@@ -163,22 +176,49 @@ app.get(
   (req, res) => res.redirect("/")
 );
 
-app.get("/logout", (req, res) => {
-  req.logout(() => {
-    req.session.destroy(() => {
-      res.redirect("/");
+app.get("/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+
+    // Session ko database se poori tarah khatam karo
+    req.session.destroy((err) => {
+      if (err) console.error("❌ Session destroy error:", err);
+
+      // Browser ki cookie saaf karo (connect.sid)
+      res.clearCookie("connect.sid"); 
+
+      // Phir seedha Landing page par bhejo
+      res.redirect("/"); 
     });
   });
 });
 
+
+/* ================= ROUTES (MODIFIED) ================= */
+
+// Ye function check karta hai ki user logged in hai ya nahi
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
-  res.redirect("/auth/google");
+  // Agar login nahi hai, toh seedha Google par mat bhejo, Landing page dikhao
+  res.sendFile(__dirname + "/landing.html"); 
 }
 
-app.get("/", ensureAuth, (req, res) => {
+// Main Route: Yahan decide hoga ki kya dikhana hai
+app.get("/", (req, res) => {
+  if (req.isAuthenticated()) {
+    // Agar banda login hai, toh Chat Hub (index.html) bhejo
+    res.sendFile(__dirname + "/index.html");
+  } else {
+    // Agar login nahi hai, toh tera Premium Landing Page dikhao
+    res.sendFile(__dirname + "/landing.html");
+  }
+});
+
+// Ye zaroori hai taaki dashboard ke andar auth check rahe
+app.get("/chat", ensureAuth, (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
+
 
 app.use(express.static(__dirname));
 
@@ -200,18 +240,21 @@ const interval = setInterval(() => {
 }, 30000);
 
 const sockets = new Map();
-const onlineUsers = new Set();
+const onlineUsersData = new Map(); // Naya Map
 
 function emitOnlineUsers() {
+  const usersList = Array.from(onlineUsersData.values());
   const data = JSON.stringify({
-    type: "online-users",
-    count: onlineUsers.size,
+    type: "online-users-list", // Type badal diya frontend ke liye
+    count: usersList.length,
+    users: usersList
   });
 
   wss.clients.forEach((c) => {
     if (c.readyState === WebSocket.OPEN) c.send(data);
   });
 }
+
 
 wss.on("connection", (ws, req) => {
   ws.isAlive = true;
@@ -236,7 +279,14 @@ ws.send(JSON.stringify({
 
     const id = deviceId(req);
     sockets.set(ws, { id, room: "public" });
-    onlineUsers.add(id);
+
+    // User ka data map mein daalo
+    onlineUsersData.set(id, {
+      name: req.user.name,
+      avatar: req.user.avatar,
+      email: req.user.email
+    });
+
     emitOnlineUsers();
 
     ws.on("message", async (raw) => {
@@ -395,7 +445,7 @@ if (!userEmail) {
 // Line 383 ke paas
 messages.forEach(m => {
   if (!m.avatar) m.avatar = "";
-  
+
   // ✅ Add this: Agar DB mein deleted hai, toh client ko original text mat bhejo
   if (m.isDeleted) {
     m.text = "🚫 This message was deleted";
@@ -517,8 +567,9 @@ if (!(msg.reactions instanceof Map)) {
         }
       }
 
-      if (!stillConnected) onlineUsers.delete(id);
-
+      if (!stillConnected) {
+        onlineUsersData.delete(id); // Map se delete karo
+      }
       emitOnlineUsers();
     });
 }); // passport.session

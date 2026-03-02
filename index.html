@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Isolophilia Community</title>
+   <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: https://*.googleusercontent.com https://res.cloudinary.com;">
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="style.css">
 </head>
@@ -31,6 +32,9 @@
 <div class="menu">
   ⋮
   <div class="menu-dropdown">
+    <button id="toggleSidebar">
+      <i class="fa-solid fa-users"></i> Member List
+    </button>
     <button id="logoutBtn"> <!--Logout</button> -->
     <i class="fa-solid fa-right-from-bracket"></i>
    Logout</button>
@@ -41,35 +45,22 @@
    <p id="dateDisplay" style="text-align: center; color: #fff; font-size: 14px; margin-top: 10px;"></p>
   <!-- CHAT AREA START -->
   <div class="chat-wrapper">
+    
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <i class="fa-solid fa-users"></i> Online Users
+      </div>
+      <div class="sidebar-content">
+        </div>
+    </aside>
     <div class="chat-bg">
       <div id="chat" class="chat"></div>
-     <button id="newMsgBtn" class="hidden">
-      <i class="fa-regular fa-turn-down"></i>
-   </button>
-
-    <div class="message">
-  <div class="msg-text">
-    <!-- Message Text -->
-    Hello, how are you?
-  </div>
-
-  <!-- Message Metadata (status) -->
-  <div class="message-meta">
-    <span class="status">
-      <svg class="tick small hidden" viewBox="0 0 20 20">
-        <polyline points="4 11 8 15 16 6" />
-      </svg>
-      <svg class="tick big hidden" viewBox="0 0 20 20">
-        <polyline points="4 11 8 15 16 6" />
-      </svg>
-    </span>
-  </div>
+      <button id="newMsgBtn" class="hidden">
+        <i class="fa-regular fa-turn-down"></i>
+      </button>
 </div>
-
-    </div>
-  </div>
+</div>
   <div class="input-container" style="position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 480px; z-index: 1000;">
-    
     <div id="replyPreview" class="reply-preview hidden">
         <div class="reply-content">
             <span id="replyUser"></span>
@@ -89,5 +80,16 @@
   </div>
 
 <script src="/app.js"></script>
+<div id="userModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-banner"></div> <div class="modal-body">
+      <img id="modalAvatar" src="" alt="User">
+      <h2 id="modalName">User Name</h2>
+      <p id="modalEmail">user@example.com</p>
+      <button id="closeModal">Back to Chat</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
