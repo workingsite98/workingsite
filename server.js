@@ -400,12 +400,16 @@ if (data.type === "typing") {
         return;
       }
 
-/* ===== ADMIN ACTIONS (KICK/BAN) - UPDATED ===== */
+/* ===== ADMIN ACTIONS (KICK/BAN) - FIXED ===== */
 if (data.type === "admin-action") {
     console.log(`Admin action received: ${data.action} on ${data.targetEmail}`);
 
-    if (!req.user || req.user.role !== "admin") {
-        return ws.send(JSON.stringify({ type: "error", message: "🚫 Permission Denied." }));
+    // 🔥 FIX: Check both role OR direct email match
+    const isAdmin = req.user && (req.user.role === "admin" || req.user.email === process.env.ADMIN_EMAIL);
+
+    if (!isAdmin) {
+        console.log(`❌ Action Blocked: ${req.user?.email} is not an admin.`);
+        return ws.send(JSON.stringify({ type: "error", message: "🚫 Permission Denied. You are not an admin!" }));
     }
 
     const targetEmail = data.targetEmail;
