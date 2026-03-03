@@ -151,12 +151,11 @@ function addMessage(user, text, isHistory = false, time = Date.now(), messageId 
     const wrapper = document.createElement("div");
     wrapper.className = isMe ? "message-row me" : "message-row";
 
-    // ----------------- DATE SEPARATOR -----------------
+    // ----------------- DATE SEPARATOR (UPDATED) -----------------
     const messageDate = new Date(time);
     const messageDateStr = messageDate.toDateString();
 
-    // Check if date separator already exists for this date
-    const existingDate = chat.querySelector(`.date-separator[data-date="${messageDateStr}"]`);
+    let existingDate = chat.querySelector(`.date-separator[data-date="${messageDateStr}"]`);
 
     if (!existingDate) {
         const dateWrapperOuter = document.createElement("div");
@@ -171,20 +170,18 @@ function addMessage(user, text, isHistory = false, time = Date.now(), messageId 
 
         if (messageDateStr === now.toDateString()) dateDiv.textContent = "Today";
         else if (messageDateStr === yesterday.toDateString()) dateDiv.textContent = "Yesterday";
-        else dateDiv.textContent = messageDate.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+        else dateDiv.textContent = messageDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 
         dateWrapperOuter.appendChild(dateDiv);
 
-
         if (isHistory) {
-            // History me message se upar dikhane ke liye prepend use karein
+            // History load ho rahi hai toh date ko sabse upar (top) par rakho
             chat.prepend(dateWrapperOuter);
         } else {
+            // Live message aa raha hai toh date ko niche (bottom) par rakho
             chat.appendChild(dateWrapperOuter);
         }
-
     }
-
 
     const div = document.createElement("div");
     if (messageId) div.dataset.id = messageId;
@@ -784,47 +781,42 @@ if (data.type === "typing") {
       updateSidebarUI(); 
     }
 
-    if (data.type === "history") {
-      removeHistoryLoader(); // <--- Ye line add karo
-      // 1. Purani height save kar lo (Scroll freeze ke liye)
-      const oldScrollHeight = chat.scrollHeight;
+if (data.type === "history") {
+    removeHistoryLoader();
+    const oldScrollHeight = chat.scrollHeight;
 
-if (data.messages && data.messages.length > 0) {
-        // Sabse purane message ka time save karo agli request ke liye
+    if (data.messages && data.messages.length > 0) {
         oldestMessageTime = data.messages[0].time;
 
-        // Messages ko reverse karke addMessage call karo
-data.messages.forEach(msg => {
-    // addMessage parameters: user, text, isHistory, time, messageId, reactions, status, avatar, replyTo, role
-    addMessage(
-        msg.user, 
-        msg.text, 
-        true,                // isHistory (Important)
-        msg.time, 
-        msg._id, 
-        msg.reactions, 
-        msg.status || "server", 
-        msg.avatar, 
-        msg.replyTo, 
-        msg.role,            // ✅ Ye ab sahi 10th position par hai
-        msg.email
-    );
-});
+        // --- MAGIC HERE: Messages ko pehle hi reverse kar do ---
+        // Taaki loop sahi order mein chale aur prepend sahi se ho
+        const reversedMsgs = [...data.messages].reverse(); 
 
+        reversedMsgs.forEach(msg => {
+            addMessage(
+                msg.user, 
+                msg.text, 
+                true, // isHistory
+                msg.time, 
+                msg._id, 
+                msg.reactions, 
+                msg.status || "server", 
+                msg.avatar, 
+                msg.replyTo, 
+                msg.role,
+                msg.email
+            );
+        });
 
-        // 2. Scroll Position Maintain Karo (MAGIC STEP)
         if (!data.isInitial) {
-          const newScrollHeight = chat.scrollHeight;
-          chat.scrollTop = newScrollHeight - oldScrollHeight;
+            const newScrollHeight = chat.scrollHeight;
+            chat.scrollTop = newScrollHeight - oldScrollHeight;
         }
-      }
-
-      // Agar messages 30 se kam aaye hain (Jo humne server pe limit rakhi hai), matlab aur history nahi hai
-      if (data.messages.length < 30) historyEndReached = true;
-
-      loadingHistory = false;
-      historyLoaded = true;
     }
+    if (data.messages.length < 30) historyEndReached = true;
+    loadingHistory = false;
+    historyLoaded = true;
+}
 
 
 if (data.type === "chat") {
