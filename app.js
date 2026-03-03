@@ -638,51 +638,31 @@ input.addEventListener("input", () => {
 if (data.type === "all-members-list") {
     const container = document.getElementById("banListContent");
     if (!container) return;
-    
-    container.innerHTML = ""; 
+    container.innerHTML = ""; // Purani list clear karo
 
     if (!data.users || data.users.length === 0) {
-        container.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: #64748b;">No members found.</td></tr>`;
+        container.innerHTML = `<tr><td class="loader-cell" style="text-align: center; padding: 20px; font-size: 0.8rem;">No members found.</td></tr>`;
     } else {
-data.users.forEach(user => {
-    const tr = document.createElement("tr");
-    tr.style.borderBottom = "1px solid #1f2937";
-    
-    const muteText = user.isMuted ? "Unmute" : "Mute";
-    const banText = user.isBanned ? "Unban" : "Ban";
-    const banColor = user.isBanned ? "#10b981" : "#ef4444"; 
+        data.users.forEach(user => {
+            const tr = document.createElement("tr");
+            tr.className = "member-row"; // CSS classes add kiye hain styling ke liye
+            
+            const muteText = user.isMuted ? "Unmute" : "Mute"; // Toggle button text
+            const banText = user.isBanned ? "Unban" : "Ban";
+            
+            // Neon Theme Action Buttons aur placement set ki hai
+            tr.innerHTML = `<td style="padding: 7px; display: flex; align-items: center; gap: 8px;"><div class="avatar-wrapper"><img src="${user.avatar || 'logo.png'}" style="width: 35px; height: 35px; min-width: 35px; border-radius: 50%; object-fit: cover; border: 1px solid #00f7ff;"></div><div style="overflow: hidden;"><div style="color: #fff; font-weight: bold; font-size: 0.8rem; white-space: nowrap; text-overflow: ellipsis;">${user.name}</div><div style="color: #64748b; font-size: 0.65rem; white-space: nowrap; text-overflow: ellipsis;">${user.email}</div></div></td><td style="padding: 10px; text-align: right;"><div style="display: flex; gap: 4px; justify-content: flex-end;"><button class="btn-mute" style="padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(0,247,255,0.4); background: linear-gradient(135deg, #020202 0%, #001f3f 40%, #0074D9 100%); color: white; font-size: 10px; cursor: pointer; font-weight: bold;">${muteText}</button><button class="btn-kick" style="padding: 6px 12px; border-radius: 8px; border: none; background: linear-gradient(135deg, #020202 0%, #001f3f 40%, #f59e0b 100%); color: white; font-size: 10px; cursor: pointer; font-weight: bold;">Kick</button><button class="btn-ban" style="padding: 6px 12px; border-radius: 8px; border: none; background: linear-gradient(135deg, #020202 0%, #450a0a 40%, #ef4444 100%); color: white; font-size: 10px; cursor: pointer; font-weight: bold;">${banText}</button></div></td>`;
+            // Admin Action Events map karein
+            tr.querySelector(".btn-mute").onclick = () => window.sendAdminAction(user.email, user.name, user.isMuted ? 'unmute' : 'mute');
+            tr.querySelector(".btn-kick").onclick = () => window.sendAdminAction(user.email, user.name, 'kick');
+            tr.querySelector(".btn-ban").onclick = () => window.sendAdminAction(user.email, user.name, user.isBanned ? 'unban' : 'ban');
 
-    // Yahan humne ensure kiya hai ki quotes sahi se handle ho
-    tr.innerHTML = `
-        <td style="padding: 12px 15px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <img src="${user.avatar || 'logo.png'}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
-                <div>
-                    <div style="font-weight: 600; color: white;">${user.name}</div>
-                    <div style="font-size: 0.7rem; color: #6b7280;">${user.email}</div>
-                </div>
-            </div>
-        </td>
-        <td style="padding: 12px 15px; text-align: center;">
-            <div style="display: flex; gap: 5px; justify-content: center;">
-                <button class="action-btn-mute" style="background:#6366f1; color:white; border:none; padding:5px; border-radius:4px; font-size:10px; cursor:pointer;">${muteText}</button>
-                <button class="action-btn-kick" style="background:#f59e0b; color:white; border:none; padding:5px; border-radius:4px; font-size:10px; cursor:pointer;">Kick</button>
-                <button class="action-btn-ban" style="background:${banColor}; color:white; border:none; padding:5px; border-radius:4px; font-size:10px; cursor:pointer;">${banText}</button>
-            </div>
-        </td>
-    `;
-
-    // Inline onclick ki jagah Event Listeners use kar rahe hain jo zyada reliable hain
-    tr.querySelector(".action-btn-mute").onclick = () => window.sendAdminAction(user.email, user.name, user.isMuted ? 'unmute' : 'mute');
-    tr.querySelector(".action-btn-kick").onclick = () => window.sendAdminAction(user.email, user.name, 'kick');
-    tr.querySelector(".action-btn-ban").onclick = () => window.sendAdminAction(user.email, user.name, user.isBanned ? 'unban' : 'ban');
-
-    container.appendChild(tr);
-});
-
+            container.appendChild(tr);
+        });
     }
     return;
 }
+
 
 
     // 🚀 1. BAN / KICK OVERLAY LOGIC (Add this here)

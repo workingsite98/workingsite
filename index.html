@@ -111,50 +111,43 @@
   </div>
 </div>
 
-<div id="banListModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 15px; backdrop-filter: blur(5px);">
-    <div style="background: #111827; width: 100%; max-width: 750px; border-radius: 20px; border: 1px solid #374151; padding: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+<div id="banListModal" class="hidden" style="position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 35px;">
+    <div id="closeBanListOverlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);"></div>
+    
+    <div style="position: relative; width: 100%; max-width: 400px; background: linear-gradient(135deg, #050505 0%, #001f3f 40%, #0074D9 100%); border: 1px solid rgba(0, 247, 255, 0.4); border-radius: 20px; padding: 10px; box-shadow: 0 0 25px rgba(0, 247, 255, 0.2); animation: panelPop 0.3s ease-out;">
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #1f2937; padding-bottom: 15px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="background: rgba(0, 247, 255, 0.1); padding: 8px; border-radius: 10px;">
-                    <i class="fa-solid fa-users-gear" style="color: #00f7ff; font-size: 1.5rem;"></i>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 0;">
+                <div style="background: rgba(255, 255, 255, 0); padding: 8px; border-radius: 10px; color: #00f7ff;">
+                    <i class="fa-solid fa-users-gear"></i>
                 </div>
                 <div>
-                    <h3 style="color: #f3f4f6; margin: 0; font-size: 1.25rem; font-weight: 700;">Manage Users</h3>
-                    <p style="color: #6b7280; margin: 0; font-size: 0.8rem;">Control all community members</p>
+                    <h3 style="margin: 0; color: #fff; font-size: 1rem; text-shadow: 0 0 10px rgba(0, 247, 255, 0.5);">Manage Users</h3>
+                    <p style="margin: 0; color: #64748b; font-size: 0.7rem;">Community Control</p>
                 </div>
             </div>
-            <button id="closeBanList" style="background: #1f2937; border: none; color: #9ca3af; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s;">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+            <button id="closeBanList" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;">&times;</button>
         </div>
 
-        <div style="position: relative; margin-bottom: 20px;">
-            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #4b5563;"></i>
-            <input type="text" id="userSearch" placeholder="Search by name or email..." 
-                   style="width: 100%; padding: 12px 12px 12px 40px; background: #030712; border: 1px solid #1f2937; border-radius: 12px; color: white; outline: none; transition: 0.3s; font-size: 0.9rem;">
+        <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 247, 255, 0.2); border-radius: 40px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+            <i class="fa-solid fa-magnifying-glass" style="color: #00f7ff; font-size: 0.8rem;"></i>
+            <input type="text" id="userSearch" placeholder="Search members..." style="background: transparent; border: none; color: #fff; outline: none; width: 100%; font-size: 0.85rem;">
         </div>
 
-        <div style="max-height: 400px; overflow-y: auto; border-radius: 12px; border: 1px solid #1f2937; background: #030712;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                <thead style="position: sticky; top: 0; background: #1f2937; color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+        <div style="max-height: 300px; overflow-y: auto; border-radius: 20px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 1;">
                     <tr>
-                        <th style="padding: 12px 15px;">Member</th>
-                        <th style="padding: 12px 15px; text-align: center;">Quick Actions</th>
+                        <th style="text-align: left; padding: 10px; color: #00f7ff; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;">Member</th>
+                        <th style="text-align: right; padding: 10px; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="banListContent" style="color: #e5e7eb; font-size: 0.9rem;">
-                    <tr id="tableLoader">
-                        <td colspan="2" style="text-align: center; padding: 40px; color: #4b5563;">
-                            <i class="fa-solid fa-circle-notch fa-spin"></i> Loading members...
-                        </td>
-                    </tr>
+                <tbody id="banListContent">
                 </tbody>
             </table>
         </div>
     </div>
 </div>
-
 
 </body> 
 </html>

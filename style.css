@@ -1353,22 +1353,3 @@ left: 0;
     gap: 10px;
     justify-content: center;
 }
-.btn-kick {
-    background: #ff9800;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-}
-.btn-ban {
-    background: #f44336;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    box-shadow: 0 0 10px rgba(244, 67, 54, 0.4);
-}
