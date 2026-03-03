@@ -107,6 +107,14 @@ const banSchema = new mongoose.Schema({
 });
 const BannedUser = mongoose.model("BannedUser", banSchema);
 
+/* ================= MUTE MODEL ================= */
+const MutedUser = mongoose.model("MutedUser", new mongoose.Schema({
+  email: { type: String, unique: true },
+  name: String,
+  mutedAt: { type: Date, default: Date.now }
+}));
+
+
 /* ================= SESSION ================= */
 app.set("trust proxy", 1);
 
@@ -281,6 +289,12 @@ sessionMiddleware(req, {}, () => {
         return;
       }
 
+// Line 293 ke niche
+const isMutedLogin = await MutedUser.findOne({ email: req.user.email });
+if (isMutedLogin) {
+    ws.send(JSON.stringify({ type: "mute-notice", isMuted: true }));
+}
+
       // ✅ BAN CHECK: Check if user is in Banned list
       const isBanned = await BannedUser.findOne({ email: req.user.email });
       if (isBanned) {
@@ -291,7 +305,6 @@ sessionMiddleware(req, {}, () => {
         setTimeout(() => ws.close(), 1000); // Thoda time do message dikhne ka
         return;
       }
-
 
       // --- IDENTITY & REGISTRATION ---
       ws.send(JSON.stringify({
@@ -460,34 +473,98 @@ if (data.type === "admin-action") {
             broadcastSystemMessage(`✅ Admin has unbanned ${targetName}. Welcome back!`);
         }
 
-        // 🔥 Admin ka UI update karne ke liye fresh list bhejo
-        const updatedList = await BannedUser.find({});
+        // 🔥 Admin ka UI update karne ke liye fresh list trigger karo
+        const allMsgs = await Message.aggregate([{ $group: { _id: "$email", name: { $first: "$user" }, avatar: { $first: "$avatar" } } }]);
+        const bList = await BannedUser.find({});
+        const mList = await MutedUser.find({});
         ws.send(JSON.stringify({ 
-            type: "ban-list", 
-            users: updatedList 
+            type: "all-members-list", 
+            users: allMsgs.map(u => ({
+                email: u._id, name: u.name, avatar: u.avatar,
+                isBanned: bList.some(b => b.email === u._id),
+                isMuted: mList.some(m => m.email === u._id)
+            }))
         }));
+
     }
+    else if (action === "mute") {
+        await MutedUser.findOneAndUpdate(
+            { email: targetEmail },
+            { email: targetEmail, name: targetName },
+            { upsert: true }
+        );
+        broadcastSystemMessage(`🤐 Admin has muted ${targetName}. Shhh!`);
+        
+        // User ko batane ke liye ki wo mute ho gaya hai
+        wss.clients.forEach(client => {
+            const clientData = sockets.get(client);
+            if (onlineUsersData.get(clientData?.id)?.email === targetEmail) {
+                client.send(JSON.stringify({ type: "mute-notice", isMuted: true }));
+            }
+        });
+    }
+    else if (action === "unmute") {
+        await MutedUser.findOneAndDelete({ email: targetEmail });
+        broadcastSystemMessage(`🔊 Admin has unmuted ${targetName}. Bolne ki azadi!`);
+        
+        // User ka input wapas kholo
+        wss.clients.forEach(client => {
+            const clientData = sockets.get(client);
+            if (onlineUsersData.get(clientData?.id)?.email === targetEmail) {
+                client.send(JSON.stringify({ type: "mute-notice", isMuted: false }));
+            }
+        });
+    }
+    // Admin table refresh logic (Copy-paste from above)
+    const allMsgs2 = await Message.aggregate([{ $group: { _id: "$email", name: { $first: "$user" }, avatar: { $first: "$avatar" } } }]);
+    const bList2 = await BannedUser.find({});
+    const mList2 = await MutedUser.find({});
+    ws.send(JSON.stringify({ 
+        type: "all-members-list", 
+        users: allMsgs2.map(u => ({
+            email: u._id, name: u.name, avatar: u.avatar,
+            isBanned: bList2.some(b => b.email === u._id),
+            isMuted: mList2.some(m => m.email === u._id)
+        }))
+    }));
 
     emitOnlineUsers();
     return;
 }
 
 
-      /* ===== GET BAN LIST (FOR ADMIN ONLY) ===== */
-      if (data.type === "get-ban-list") {
+      /* ===== GET ALL MEMBERS (FOR ADMIN TABLE) ===== */
+      if (data.type === "get-all-members") {
         if (!req.user || req.user.role !== "admin") return;
-        
-        const bannedUsers = await BannedUser.find({});
+
+        // 1. Database se unique users nikaalo jinhone msg kiya hai
+        const users = await Message.aggregate([
+            { $group: { _id: "$email", name: { $first: "$user" }, avatar: { $first: "$avatar" } } }
+        ]);
+
+        // 2. Muted aur Banned users ki list le aao
+        const bannedList = await BannedUser.find({});
+        const mutedList = await MutedUser.find({});
+        const bannedEmails = bannedList.map(u => u.email);
+        const mutedEmails = mutedList.map(u => u.email);
+
+        // 3. Data format karke Admin ko bhejo
         ws.send(JSON.stringify({
-          type: "ban-list",
-          users: bannedUsers
+            type: "all-members-list",
+            users: users.map(u => ({
+                email: u._id,
+                name: u.name,
+                avatar: u.avatar,
+                isBanned: bannedEmails.includes(u._id),
+                isMuted: mutedEmails.includes(u._id)
+            }))
         }));
         return;
       }
 
 
       /* ===== CHAT ===== */
-      if (data.type === "chat") {
+/*      if (data.type === "chat") {
         // 🛡️ SECURITY GUARD: Check if user is banned before doing anything
         const isBanned = await BannedUser.findOne({ email: req.user?.email });
         if (isBanned) {
@@ -496,7 +573,30 @@ if (data.type === "admin-action") {
           return;
         }
 
-        if (!data.text?.trim()) return;
+        if (!data.text?.trim()) return;*/
+/* ===== CHAT ===== */
+if (data.type === "chat") {
+    // 🛡️ SECURITY GUARD 1: Check if Banned
+    const isBanned = await BannedUser.findOne({ email: req.user?.email });
+    if (isBanned) {
+        ws.send(JSON.stringify({ type: "error", message: "🚫 Action denied. You are banned." }));
+        setTimeout(() => ws.terminate(), 500);
+        return;
+    }
+
+    // 🤐 SECURITY GUARD 2: Check if Muted (YE NAYA HAI)
+    const isMuted = await MutedUser.findOne({ email: req.user?.email });
+    if (isMuted) {
+        ws.send(JSON.stringify({ 
+            type: "error", 
+            message: "🤐 Admin has muted you. You can't send messages!" 
+        }));
+        return; // Message aage nahi jayega
+    }
+
+    if (!data.text?.trim()) return;
+    // ... baaki ka purana code message save karne wala ...
+
         if (data.text.length > 500) return;
 
 const now = Date.now();

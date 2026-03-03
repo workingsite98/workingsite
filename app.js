@@ -571,6 +571,12 @@ function updateMessageStatus(msgId, state) {
 function sendMessage() {
   const text = input.value.trim();
   // Agar text khali hai toh return kar jao
+     // 🛡️ Mute Check: Agar input disabled hai toh message mat bhejo
+  if (input.disabled) {
+      console.error("Tu muted hai bhai!");
+      return;
+  }
+
   if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
 
   // 1. Payload taiyar karo
@@ -630,45 +636,57 @@ input.addEventListener("input", () => {
   function handleWSMessage(event) {
     const data = JSON.parse(event.data);
 
-    // ✅ YE WALA BLOCK YAHAN DAAREIN (handleWSMessage ke shuruat mein)
-    if (data.type === "ban-list") {
-        const banContent = document.getElementById("banListContent");
-        if (!banContent) return;
-        
-        banContent.innerHTML = ""; 
-        
-        if (!data.users || data.users.length === 0) {
-            banContent.innerHTML = `<p style="color: #64748b; text-align: center; padding: 20px;">No users banned yet.</p>`;
-        } else {
-            data.users.forEach(user => {
-                const row = document.createElement("div");
-                row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; margin-bottom: 8px;";
-                
-                row.innerHTML = `
-                    <div style="overflow: hidden; text-align: left;">
-                        <div style="color: white; font-weight: bold; font-size: 0.9em;">${user.name}</div>
-                        <div style="color: #94a3b8; font-size: 0.75em;">${user.email}</div>
+// handleWSMessage ke andar ye naya block daalo
+if (data.type === "all-members-list") {
+    const container = document.getElementById("banListContent");
+    if (!container) return;
+    
+    container.innerHTML = ""; // Purana data ya loader saaf karo
+
+    if (!data.users || data.users.length === 0) {
+        container.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: #64748b;">No members found.</td></tr>`;
+    } else {
+        data.users.forEach(user => {
+            const tr = document.createElement("tr");
+            tr.style.borderBottom = "1px solid #1f2937";
+            
+            // Status check
+            const muteText = user.isMuted ? "Unmute" : "Mute";
+            const banText = user.isBanned ? "Unban" : "Ban";
+            const banColor = user.isBanned ? "#10b981" : "#ef4444"; 
+
+            tr.innerHTML = `
+                <td style="padding: 12px 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="${user.avatar || 'logo.png'}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #374151;">
+                        <div style="overflow: hidden;">
+                            <div style="font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">${user.name}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">${user.email}</div>
+                        </div>
                     </div>
-                    <button class="real-unban-btn" 
-                            style="background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer;">
-                        Unban
-                    </button>
-                `;
-
-                // ✅ Direct Listener lagao (Inline onclick se behtar hai)
-                row.querySelector(".real-unban-btn").addEventListener("click", () => {
-                    window.sendAdminAction(user.email, user.name, 'unban');
-                });
-
-                banContent.appendChild(row);
-            });
-
-        }
-        return; // ✅ Ye zaroori hai taaki aage ka chat logic na chale
+                </td>
+                <td style="padding: 12px 15px; text-align: center;">
+                    <div style="display: flex; gap: 6px; justify-content: center;">
+                        <button class="action-btn" onclick="window.sendAdminAction('${user.email}', '${user.name}', '${user.isMuted ? 'unmute' : 'mute'}')" 
+                                style="background: #6366f1; color: white; border: none; padding: 6px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; flex: 1;">
+                            ${muteText}
+                        </button>
+                        <button class="action-btn" onclick="window.sendAdminAction('${user.email}', '${user.name}', 'kick')" 
+                                style="background: #f59e0b; color: white; border: none; padding: 6px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; flex: 1;">
+                            Kick
+                        </button>
+                        <button class="action-btn" onclick="window.sendAdminAction('${user.email}', '${user.name}', '${user.isBanned ? 'unban' : 'ban'}')" 
+                                style="background: ${banColor}; color: white; border: none; padding: 6px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer; flex: 1;">
+                            ${banText}
+                        </button>
+                    </div>
+                </td>
+            `;
+            container.appendChild(tr);
+        });
     }
-    // --------------------------------------------------
-
-    // ... Tera purana Kick/Ban Notice wala code yahan se shuru hoga ...
+    return; // Chat logic ko skip karne ke liye
+}
 
 
     // 🚀 1. BAN / KICK OVERLAY LOGIC (Add this here)
@@ -715,6 +733,36 @@ if (data.type === "me") {
       banBtn.style.display = (window.currentUserRole === "admin") ? "block" : "none";
   }
   return;
+}
+// 🤐 MUTE / UNMUTE LOGIC
+if (data.type === "mute-notice") {
+    // Sahi ID 'messageInput' use kar rahe hain yahan
+    const inputField = document.getElementById("messageInput"); 
+    const sendBtn = document.getElementById("sendBtn");
+
+    if (inputField) { // Check lagana achi baat hai
+        if (data.isMuted) {
+            inputField.disabled = true;
+            inputField.value = ""; // Mute hote hi likha hua text saaf kar do
+            inputField.placeholder = "🤐 Admin has muted you...";
+            inputField.style.background = "rgba(255, 0, 0, 0.05)"; // Halka red tint (optional)
+            
+            if(sendBtn) {
+                sendBtn.style.pointerEvents = "none";
+                sendBtn.style.opacity = "0.5";
+            }
+        } else {
+            inputField.disabled = false;
+            inputField.placeholder = "Type a message...";
+            inputField.style.background = "transparent";
+            
+            if(sendBtn) {
+                sendBtn.style.pointerEvents = "auto";
+                sendBtn.style.opacity = "1";
+            }
+        }
+    }
+    return;
 }
 
 /* ================= RECEIVE TYPING ================= */
@@ -974,31 +1022,28 @@ window.openProfile = function(name, avatar, role = "user", email = "") {
             mEmail.style.color = "#aaa";
         }
 
+
         // 🛡️ ADMIN CONTROLS
         if (window.currentUserRole === "admin" && email !== window.currentEmail) {
             adminActions.innerHTML = `
-                <div class="admin-btn-group" style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; width: 100%;">
-                    <button id="kickBtnNode" class="btn-kick" style="background: #ff9800; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                        Kick
-                    </button>
-                    <button id="banBtnNode" class="btn-ban" style="background: #f44336; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                        Ban User
-                    </button>
+                <div class="admin-btn-group" style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">
+                    <button id="muteBtnNode" style="background: #6366f1; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">Mute</button>
+                    <button id="unmuteBtnNode" style="background: #10b981; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">Unmute</button>
+                    <button id="kickBtnNode" style="background: #ff9800; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">Kick</button>
+                    <button id="banBtnNode" style="background: #f44336; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">Ban User</button>
                 </div>
             `;
 
-            // ✅ NAYA TARIKA: Direct Event Listeners lagao (Inline onclick ki jagah)
-            document.getElementById("kickBtnNode").addEventListener("click", () => {
-                window.sendAdminAction(email, name, 'kick');
-            });
-            document.getElementById("banBtnNode").addEventListener("click", () => {
-                window.sendAdminAction(email, name, 'ban');
-            });
+            // Listeners for all actions
+            document.getElementById("muteBtnNode").addEventListener("click", () => window.sendAdminAction(email, name, 'mute'));
+            document.getElementById("unmuteBtnNode").addEventListener("click", () => window.sendAdminAction(email, name, 'unmute'));
+            document.getElementById("kickBtnNode").addEventListener("click", () => window.sendAdminAction(email, name, 'kick'));
+            document.getElementById("banBtnNode").addEventListener("click", () => window.sendAdminAction(email, name, 'ban'));
 
         } else {
             adminActions.innerHTML = "";
         }
-        
+
         modal.classList.remove("hidden");
     }
 };
@@ -1015,13 +1060,18 @@ if (closeModalBtn) {
 // 🚀 Server ko request bhejne wala function
 window.sendAdminAction = function(email, name, action) {
     if (!email || email === "undefined") return alert("Error: User email missing!");
-    
-    const confirmMsg = action === 'ban' ? `PERMANENTLY BAN ${name}?` : `Kick ${name} from chat?`;
-    if (!confirm(confirmMsg)) return;
+
+    // Dynamic confirm message
+    const messages = {
+        'ban': `🚫 PERMANENTLY BAN ${name}?`,
+        'kick': `⚠️ Kick ${name} from chat?`,
+        'mute': `🤐 Mute ${name}? They won't be able to send messages.`,
+        'unmute': `🔊 Unmute ${name}?`
+    };
+
+    if (!confirm(messages[action] || `Perform ${action} on ${name}?`)) return;
 
     if (ws && ws.readyState === WebSocket.OPEN) {
-       // ✅ SAHI JAGAH YE HAI (Admin Action ke andar)
-          alert("Action " + action + " sent for " + email); 
         ws.send(JSON.stringify({
             type: "admin-action",
             targetEmail: email,
@@ -1029,6 +1079,7 @@ window.sendAdminAction = function(email, name, action) {
             action: action
         }));
         document.getElementById("userModal").classList.add("hidden");
+        console.log(`✅ Action ${action} sent for ${email}`);
     }
 };
 
@@ -1098,14 +1149,40 @@ const banContent = document.getElementById("banListContent");
 if(openBanBtn) {
     openBanBtn.onclick = () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "get-ban-list" }));
+            // ✅ Change here: Purane 'get-ban-list' ko replace karke ye likho
+            ws.send(JSON.stringify({ type: "get-all-members" })); 
+            
+            // Modal khulne se pehle loader dikha do (Optional but looks professional)
+            const container = document.getElementById("banListContent");
+            if(container) {
+                container.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:20px; color:#6b7280;">Loading members...</td></tr>`;
+            }
+            
             banModal.classList.remove("hidden");
-        } // <--- Ye IF ka bracket hai
-    }; // <--- Ye onclick ka bracket hai
+        } 
+    };
 }
+
 
 // 2. Modal Band karna
 if(closeBanBtn) closeBanBtn.onclick = () => banModal.classList.add("hidden");
+
+// Search filter logic
+const userSearchInput = document.getElementById("userSearch");
+if (userSearchInput) {
+    userSearchInput.addEventListener("input", (e) => {
+        const term = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll("#banListContent tr");
+        
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            // Loader row ko ignore karein
+            if(row.id === "tableLoader") return;
+            row.style.display = text.includes(term) ? "table-row" : "none";
+        });
+    });
+}
+
 
 // --- AB YAHAN DOMContentLoaded KO BAND KARO ---
 }); // <--- Ye line 1 DOMContentLoaded wala bracket hai

@@ -51,7 +51,9 @@
     <button id="toggleSidebar">
       <i class="fa-solid fa-users"></i> Member List
     </button>
-     <button id="openBanListBtn" style="color: #ff4757; font-weight: bold;">Manage Bans 🚫</button>
+    <button id="openBanListBtn" style="color: #00f7ff; font-weight: bold;">
+    <i class="fa-solid fa-users-gear"></i> Manage Users
+</button>
     <button id="logoutBtn"> <!--Logout</button> -->
     <i class="fa-solid fa-right-from-bracket"></i>
    Logout</button>
@@ -108,32 +110,51 @@
     </div>
   </div>
 </div>
-<div id="userModal" class="modal hidden">
-  <div class="modal-content">
-    <div class="modal-banner"></div> 
-    <div class="modal-body">
-      <img id="modalAvatar" src="" alt="User">
-      <h2 id="modalName">User Name</h2>
-      <p id="modalEmail">user@example.com</p>
-      <div id="adminActions"></div>
-      <button id="closeModal">Back to Chat</button>
-    </div>
-  </div>
-</div>
 
-<div id="banListModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;">
-    <div style="background: #1e293b; width: 100%; max-width: 400px; border-radius: 20px; border: 1px solid #334155; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 style="color: white; margin: 0;">Banned Users</h3>
-            <button id="closeBanList" style="background: none; border: none; color: #94a3b8; font-size: 24px; cursor: pointer;">&times;</button>
-        </div>
-        <div id="banListContent" style="max-height: 300px; overflow-y: auto;">
+<div id="banListModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 15px; backdrop-filter: blur(5px);">
+    <div style="background: #111827; width: 100%; max-width: 750px; border-radius: 20px; border: 1px solid #374151; padding: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #1f2937; padding-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="background: rgba(0, 247, 255, 0.1); padding: 8px; border-radius: 10px;">
+                    <i class="fa-solid fa-users-gear" style="color: #00f7ff; font-size: 1.5rem;"></i>
+                </div>
+                <div>
+                    <h3 style="color: #f3f4f6; margin: 0; font-size: 1.25rem; font-weight: 700;">Manage Users</h3>
+                    <p style="color: #6b7280; margin: 0; font-size: 0.8rem;">Control all community members</p>
+                </div>
             </div>
+            <button id="closeBanList" style="background: #1f2937; border: none; color: #9ca3af; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div style="position: relative; margin-bottom: 20px;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #4b5563;"></i>
+            <input type="text" id="userSearch" placeholder="Search by name or email..." 
+                   style="width: 100%; padding: 12px 12px 12px 40px; background: #030712; border: 1px solid #1f2937; border-radius: 12px; color: white; outline: none; transition: 0.3s; font-size: 0.9rem;">
+        </div>
+
+        <div style="max-height: 400px; overflow-y: auto; border-radius: 12px; border: 1px solid #1f2937; background: #030712;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead style="position: sticky; top: 0; background: #1f2937; color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    <tr>
+                        <th style="padding: 12px 15px;">Member</th>
+                        <th style="padding: 12px 15px; text-align: center;">Quick Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="banListContent" style="color: #e5e7eb; font-size: 0.9rem;">
+                    <tr id="tableLoader">
+                        <td colspan="2" style="text-align: center; padding: 40px; color: #4b5563;">
+                            <i class="fa-solid fa-circle-notch fa-spin"></i> Loading members...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-</body> </html>
 
-
-</body>
+</body> 
 </html>
