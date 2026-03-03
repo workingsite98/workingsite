@@ -519,7 +519,8 @@ if (data.type === "admin-action") {
             }
         });
     }
-    // Admin table refresh logic (Copy-paste from above)
+    // Admin refresh logic inside admin-action
+    const currentOnlineEmailsAction = Array.from(onlineUsersData.values()).map(u => u.email);
     const allMsgs2 = await Message.aggregate([{ $group: { _id: "$email", name: { $first: "$user" }, avatar: { $first: "$avatar" } } }]);
     const bList2 = await BannedUser.find({});
     const mList2 = await MutedUser.find({});
@@ -528,7 +529,8 @@ if (data.type === "admin-action") {
         users: allMsgs2.map(u => ({
             email: u._id, name: u.name, avatar: u.avatar,
             isBanned: bList2.some(b => b.email === u._id),
-            isMuted: mList2.some(m => m.email === u._id)
+            isMuted: mList2.some(m => m.email === u._id),
+            isOnline: currentOnlineEmailsAction.includes(u._id) // <--- ISSE REFRESH PAR BHI DOT RAHEGA
         }))
     }));
 
@@ -537,22 +539,25 @@ if (data.type === "admin-action") {
 }
 
 
-      /* ===== GET ALL MEMBERS (FOR ADMIN TABLE) ===== */
+      /* ===== GET ALL MEMBERS (FOR ADMIN TABLE) WITH ONLINE STATUS ===== */
       if (data.type === "get-all-members") {
         if (!req.user || req.user.role !== "admin") return;
 
-        // 1. Database se unique users nikaalo jinhone msg kiya hai
+        // 1. Database se unique users nikaalo
         const users = await Message.aggregate([
             { $group: { _id: "$email", name: { $first: "$user" }, avatar: { $first: "$avatar" } } }
         ]);
 
-        // 2. Muted aur Banned users ki list le aao
+        // 2. Muted aur Banned users
         const bannedList = await BannedUser.find({});
         const mutedList = await MutedUser.find({});
         const bannedEmails = bannedList.map(u => u.email);
         const mutedEmails = mutedList.map(u => u.email);
 
-        // 3. Data format karke Admin ko bhejo
+        // 3. Online Emails ki list nikalo (Map se)
+        const currentOnlineEmails = Array.from(onlineUsersData.values()).map(u => u.email);
+
+        // 4. Data format karke Admin ko bhejo
         ws.send(JSON.stringify({
             type: "all-members-list",
             users: users.map(u => ({
@@ -560,24 +565,13 @@ if (data.type === "admin-action") {
                 name: u.name,
                 avatar: u.avatar,
                 isBanned: bannedEmails.includes(u._id),
-                isMuted: mutedEmails.includes(u._id)
+                isMuted: mutedEmails.includes(u._id),
+                isOnline: currentOnlineEmails.includes(u._id) // <--- YE LINE ADD KI
             }))
         }));
         return;
       }
 
-
-      /* ===== CHAT ===== */
-/*      if (data.type === "chat") {
-        // 🛡️ SECURITY GUARD: Check if user is banned before doing anything
-        const isBanned = await BannedUser.findOne({ email: req.user?.email });
-        if (isBanned) {
-          ws.send(JSON.stringify({ type: "error", message: "🚫 Action denied. You are banned." }));
-          setTimeout(() => ws.terminate(), 500);
-          return;
-        }
-
-        if (!data.text?.trim()) return;*/
 /* ===== CHAT ===== */
 if (data.type === "chat") {
     // 🛡️ SECURITY GUARD 1: Check if Banned
