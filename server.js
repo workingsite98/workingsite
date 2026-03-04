@@ -10,6 +10,18 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const MongoStore = require("connect-mongo").default;
 
+const Filter = require("bad-words");
+const filter = new Filter();
+
+// Teri custom Hinglish gaaliyon ki list
+const customHinglishWords = [
+  'bc', 'mc', 'bhenchod', 'madarchod', 'gandu', 
+  'lavda', 'behenchod', 'maderchod', 'bsdk', 'bhosdike', 'lodu', 
+  'haramkhor', 'randi'
+];
+filter.addWords(...customHinglishWords);
+
+
 const express = require("express");
 const session = require("express-session");
 const passport = require("passport");
@@ -625,10 +637,20 @@ const lastTime = userLastMessage.get(id) || 0;
 if (now - lastTime < 300) return;
 userLastMessage.set(id, now);
 
-        const cleanText = sanitizeHtml(data.text.trim(), {
+// --- YAHAN SE REPLACE KAREIN ---
+        // 1. Pehle HTML aur faltu tags saaf karo
+        let cleanText = sanitizeHtml(data.text.trim(), {
           allowedTags: [],
           allowedAttributes: {},
         });
+
+        // 2. Phir Gaaliyan saaf karo (**** mein badal dega)
+        try {
+            cleanText = filter.clean(cleanText);
+        } catch (err) {
+            console.log("Filter error, keeping original text");
+        }
+// --- YAHAN TAK ---
 
 const userEmail = req.user?.email;
 if (!userEmail) {
