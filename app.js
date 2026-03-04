@@ -40,6 +40,8 @@ if(logoutBtn) {
   /* ================= GLOBAL STATE ================= */
   const MAX_MESSAGES_IN_DOM = 500;
 //  let ws;
+  let localUptime = 0;       // 🆕 Uptime store karne ke liye
+  let uptimeInterval = null; // 🆕 Timer control karne ke liye
   let reconnectDelay = 2000;
  // let oldestMessageId = null;
   let oldestMessageTime = null; // ID ki jagah ab time track karenge
@@ -122,7 +124,14 @@ let isTyping = false;
 
     ws.onmessage = handleWSMessage;
 
+// --- Line 127 se 137 ke beech isse badlein ---
     ws.onclose = () => {
+      // 🛑 Connection band toh timer bhi band
+      if (uptimeInterval) {
+        clearInterval(uptimeInterval);
+        uptimeInterval = null;
+      }
+
       setTimeout(() => {
         if (retryCount < MAX_RETRIES) {
           connectWS();
@@ -631,23 +640,55 @@ input.addEventListener("input", () => {
   }, 1200);
 });
 
+// 🆕 Function to update only the seconds on screen
+function updateLiveUptimeDisplay(seconds) {
+    const uptimeElem = document.getElementById("liveUptimeDisplay");
+    if (!uptimeElem) return;
+
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    // Format: 0h 0m 0s (Tujhe jaisa pasand ho)
+    uptimeElem.innerText = `${hrs}h ${mins}m ${secs}s`;
+}
+
+
   function handleWSMessage(event) {
     const data = JSON.parse(event.data);
 
 // handleWSMessage ke andar 'all-members-list' block
 if (data.type === "all-members-list") {
-    // 1. STATS & UPTIME UPDATE (Using your neon style)
+    
+    // ✅ SAFE TIMER LOGIC: Purane timer ko pehle clear karo
+    if (data.uptime !== undefined) {
+        if (uptimeInterval) {
+            clearInterval(uptimeInterval);
+            uptimeInterval = null;
+        }
+
+        localUptime = data.uptime;
+        
+        // Naya fresh timer shuru
+        uptimeInterval = setInterval(() => {
+            localUptime++;
+            updateLiveUptimeDisplay(localUptime);
+        }, 1000);
+    }
+
+
+    // 📊 2. STATS UPDATE (Iske andar id="liveUptimeDisplay" zaroori hai)
     const statsContainer = document.getElementById("adminStatsBar");
     if (statsContainer && data.stats) {
         const hrs = Math.floor(data.uptime / 3600);
         const mins = Math.floor((data.uptime % 3600) / 60);
-        const uptimeStr = `${hrs}h ${mins}m`;
+        const secs = data.uptime % 60;
+        const uptimeStr = `${hrs}h ${mins}m ${secs}s`;
 
-        // Yahan tere purane style ke cards hain bina kisi CSS file ke
         statsContainer.innerHTML = `
             <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(0, 247, 255, 0.2);">
                 <span style="display:block; font-size: 0.6rem; color: #00f7ff; text-transform: uppercase;">Uptime</span>
-                <strong style="font-size: 0.8rem; color: #fff;">${uptimeStr}</strong>
+                <strong id="liveUptimeDisplay" style="font-size: 0.8rem; color: #fff;">${uptimeStr}</strong>
             </div>
             <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(0, 247, 255, 0.2);">
                 <span style="display:block; font-size: 0.6rem; color: #00f7ff; text-transform: uppercase;">Online</span>
