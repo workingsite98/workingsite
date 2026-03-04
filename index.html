@@ -129,6 +129,12 @@
             <button id="closeBanList" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;">&times;</button>
         </div>
 
+<div id="adminStatsBar" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 15px; border: 1px solid rgba(0, 247, 255, 0.25); box-shadow: inset 0 0 10px rgba(0, 247, 255, 0.1);">
+    <div style="text-align: center; color: #64748b; font-size: 0.75rem; grid-column: span 2; font-family: sans-serif;">
+        <i class="fa-solid fa-circle-notch fa-spin"></i> Loading Dashboard...
+    </div>
+</div>
+
         <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 247, 255, 0.2); border-radius: 40px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
             <i class="fa-solid fa-magnifying-glass" style="color: #00f7ff; font-size: 0.8rem;"></i>
             <input type="text" id="userSearch" placeholder="Search members..." style="background: transparent; border: none; color: #fff; outline: none; width: 100%; font-size: 0.85rem;">

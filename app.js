@@ -634,25 +634,71 @@ input.addEventListener("input", () => {
   function handleWSMessage(event) {
     const data = JSON.parse(event.data);
 
-// handleWSMessage ke andar ye naya block daalo
+// handleWSMessage ke andar 'all-members-list' block
 if (data.type === "all-members-list") {
+    // 1. STATS & UPTIME UPDATE (Using your neon style)
+    const statsContainer = document.getElementById("adminStatsBar");
+    if (statsContainer && data.stats) {
+        const hrs = Math.floor(data.uptime / 3600);
+        const mins = Math.floor((data.uptime % 3600) / 60);
+        const uptimeStr = `${hrs}h ${mins}m`;
+
+        // Yahan tere purane style ke cards hain bina kisi CSS file ke
+        statsContainer.innerHTML = `
+            <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(0, 247, 255, 0.2);">
+                <span style="display:block; font-size: 0.6rem; color: #00f7ff; text-transform: uppercase;">Uptime</span>
+                <strong style="font-size: 0.8rem; color: #fff;">${uptimeStr}</strong>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(0, 247, 255, 0.2);">
+                <span style="display:block; font-size: 0.6rem; color: #00f7ff; text-transform: uppercase;">Online</span>
+                <strong style="font-size: 0.8rem; color: #fff;">${data.stats.online}</strong>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(0, 247, 255, 0.2);">
+                <span style="display:block; font-size: 0.6rem; color: #00f7ff; text-transform: uppercase;">Msgs</span>
+                <strong style="font-size: 0.8rem; color: #fff;">${data.stats.messages}</strong>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2);">
+                <span style="display:block; font-size: 0.6rem; color: #ef4444; text-transform: uppercase;">Banned</span>
+                <strong style="font-size: 0.8rem; color: #fff;">${data.stats.banned}</strong>
+            </div>
+        `;
+    }
+
+    // 2. MEMBERS LIST (Wahi purana styling jo tune diya tha)
     const container = document.getElementById("banListContent");
     if (!container) return;
-    container.innerHTML = ""; // Purani list clear karo
+    container.innerHTML = ""; 
 
     if (!data.users || data.users.length === 0) {
-        container.innerHTML = `<tr><td class="loader-cell" style="text-align: center; padding: 20px; font-size: 0.8rem;">No members found.</td></tr>`;
+        container.innerHTML = `<tr><td style="text-align: center; padding: 20px; color: #64748b; font-size: 0.8rem;">No members found.</td></tr>`;
     } else {
         data.users.forEach(user => {
             const tr = document.createElement("tr");
-            tr.className = "member-row"; // CSS classes add kiye hain styling ke liye
             
-            const muteText = user.isMuted ? "Unmute" : "Mute"; // Toggle button text
+            const muteText = user.isMuted ? "Unmute" : "Mute";
             const banText = user.isBanned ? "Unban" : "Ban";
-            
-            // Neon Theme Action Buttons aur placement set ki hai
-tr.innerHTML = `<td style="padding: 7px; display: flex; align-items: center; gap: 8px; width: 130px; min-width: 130px;"><div class="avatar-wrapper" style="position: relative;"><img src="${user.avatar || 'logo.png'}" style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #00f7ff;"><span style="position: absolute; bottom: 0; right: 0; width: 8px; height: 8px; border-radius: 50%; background: ${user.isOnline ? '#22c55e' : '#64748b'}; border: 2px solid #020202; box-shadow: ${user.isOnline ? '0 0 8px #22c55e' : 'none'}; transition: 0.3s;"></span></div><div style="overflow: hidden; flex: 1;"><div style="color: #fff; font-weight: bold; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${user.name}</div><div style="color: #64748b; font-size: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${user.email}</div></div></td><td style="padding: 5px; text-align: left;"><div style="display: flex; gap: 3px; justify-content: flex-start; margin-left: -15px;"><button class="btn-mute" style="padding: 5px 9px; border-radius: 6px; border: 1px solid rgba(0,247,255,0.4); background: linear-gradient(135deg, #020202 0%, #001f3f 40%, #0074D9 100%); color: white; font-size: 9px; cursor: pointer; font-weight: bold; white-space: nowrap;">${muteText}</button><button class="btn-kick" style="padding: 5px 9px; border-radius: 6px; border: none; background: linear-gradient(135deg, #020202 0%, #001f3f 40%, #f59e0b 100%); color: white; font-size: 9px; cursor: pointer; font-weight: bold;">Kick</button><button class="btn-ban" style="padding: 5px 9px; border-radius: 6px; border: none; background: linear-gradient(135deg, #020202 0%, #450a0a 40%, #ef4444 100%); color: white; font-size: 9px; cursor: pointer; font-weight: bold; white-space: nowrap;">${banText}</button></div></td>`;
-            // Admin Action Events map karein
+
+            // BILKUL WAHI PURANA STYLE JO TUNE DIYA THA
+            tr.innerHTML = `
+                <td style="padding: 7px; display: flex; align-items: center; gap: 8px; width: 130px; min-width: 130px;">
+                    <div class="avatar-wrapper" style="position: relative;">
+                        <img src="${user.avatar || 'logo.png'}" style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #00f7ff;">
+                        <span style="position: absolute; bottom: 0; right: 0; width: 8px; height: 8px; border-radius: 50%; background: ${user.isOnline ? '#22c55e' : '#64748b'}; border: 2px solid #020202; box-shadow: ${user.isOnline ? '0 0 8px #22c55e' : 'none'};"></span>
+                    </div>
+                    <div style="overflow: hidden; flex: 1;">
+                        <div style="color: #fff; font-weight: bold; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${user.name}</div>
+                        <div style="color: #64748b; font-size: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${user.email}</div>
+                    </div>
+                </td>
+                <td style="padding: 5px; text-align: left;">
+                    <div style="display: flex; gap: 3px; justify-content: flex-start; margin-left: -15px;">
+                        <button class="btn-mute" style="padding: 5px 9px; border-radius: 6px; border: 1px solid rgba(0,247,255,0.4); background: linear-gradient(135deg, #020202 0%, #001f3f 40%, #0074D9 100%); color: white; font-size: 9px; cursor: pointer; font-weight: bold; white-space: nowrap;">${muteText}</button>
+                        <button class="btn-kick" style="padding: 5px 9px; border-radius: 6px; border: none; background: linear-gradient(135deg, #020202 0%, #001f3f 40%, #f59e0b 100%); color: white; font-size: 9px; cursor: pointer; font-weight: bold;">Kick</button>
+                        <button class="btn-ban" style="padding: 5px 9px; border-radius: 6px; border: none; background: linear-gradient(135deg, #020202 0%, #450a0a 40%, #ef4444 100%); color: white; font-size: 9px; cursor: pointer; font-weight: bold; white-space: nowrap;">${banText}</button>
+                    </div>
+                </td>`;
+
+            // Admin Action Events
             tr.querySelector(".btn-mute").onclick = () => window.sendAdminAction(user.email, user.name, user.isMuted ? 'unmute' : 'mute');
             tr.querySelector(".btn-kick").onclick = () => window.sendAdminAction(user.email, user.name, 'kick');
             tr.querySelector(".btn-ban").onclick = () => window.sendAdminAction(user.email, user.name, user.isBanned ? 'unban' : 'ban');
@@ -662,7 +708,6 @@ tr.innerHTML = `<td style="padding: 7px; display: flex; align-items: center; gap
     }
     return;
 }
-
 
 
     // 🚀 1. BAN / KICK OVERLAY LOGIC (Add this here)

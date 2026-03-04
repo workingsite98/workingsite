@@ -1,8 +1,8 @@
 // ====== REALTIME CHAT SERVER (HARDENED ORIGINAL VERSION) ======
-
 const userLastMessage = new Map();
 const WebSocket = require("ws");
 const crypto = require("crypto");
+const startTime = Date.now(); // Server kab start hua uska time
 const mongoose = require("mongoose");
 require("dotenv").config();
 const sanitizeHtml = require("sanitize-html");
@@ -519,20 +519,32 @@ if (data.type === "admin-action") {
             }
         });
     }
-    // Admin refresh logic inside admin-action
+// --- ISSE REPLACE KARO (Line 522-536 ke beech) ---
     const currentOnlineEmailsAction = Array.from(onlineUsersData.values()).map(u => u.email);
     const allMsgs2 = await Message.aggregate([{ $group: { _id: "$email", name: { $first: "$user" }, avatar: { $first: "$avatar" } } }]);
     const bList2 = await BannedUser.find({});
     const mList2 = await MutedUser.find({});
+    
+    // NAYA: Stats calculate karo taaki action ke baad dashboard turant update ho
+    const totalMessagesAction = await Message.countDocuments();
+    const totalBannedAction = bList2.length;
+
     ws.send(JSON.stringify({ 
         type: "all-members-list", 
+        uptime: Math.floor((Date.now() - startTime) / 1000), 
+        stats: { // <--- Ye stats yahan missing the, ab add kar diye
+            messages: totalMessagesAction,
+            banned: totalBannedAction,
+            online: currentOnlineEmailsAction.length
+        },
         users: allMsgs2.map(u => ({
             email: u._id, name: u.name, avatar: u.avatar,
             isBanned: bList2.some(b => b.email === u._id),
             isMuted: mList2.some(m => m.email === u._id),
-            isOnline: currentOnlineEmailsAction.includes(u._id) // <--- ISSE REFRESH PAR BHI DOT RAHEGA
+            isOnline: currentOnlineEmailsAction.includes(u._id)
         }))
     }));
+// -----------------------------------------------
 
     emitOnlineUsers();
     return;
@@ -557,18 +569,28 @@ if (data.type === "admin-action") {
         // 3. Online Emails ki list nikalo (Map se)
         const currentOnlineEmails = Array.from(onlineUsersData.values()).map(u => u.email);
 
-        // 4. Data format karke Admin ko bhejo
+        // 4. Data format karke Admin ko bhejo (With Stats!)
+        const totalMessages = await Message.countDocuments(); // Kitne messages hain total
+        const totalBanned = bannedList.length;
+
         ws.send(JSON.stringify({
             type: "all-members-list",
+            uptime: Math.floor((Date.now() - startTime) / 1000), 
+            stats: {
+                messages: totalMessages,
+                banned: totalBanned,
+                online: currentOnlineEmails.length
+            },
             users: users.map(u => ({
                 email: u._id,
                 name: u.name,
                 avatar: u.avatar,
                 isBanned: bannedEmails.includes(u._id),
                 isMuted: mutedEmails.includes(u._id),
-                isOnline: currentOnlineEmails.includes(u._id) // <--- YE LINE ADD KI
+                isOnline: currentOnlineEmails.includes(u._id)
             }))
         }));
+
         return;
       }
 
