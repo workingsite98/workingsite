@@ -835,6 +835,38 @@ if (data.type === "typing") {
     removeTypingIndicator();
   }
 }
+// Line 838 ke upar add karein
+if (data.type === "all-reports-list") {
+    const container = document.getElementById("banListContent"); // Hum isi container ko reuse kar rahe hain
+    const title = document.querySelector("#banListModal h3"); // Modal ki heading change karne ke liye
+    if(title) title.innerText = "🚨 User Reports";
+    
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (data.reports.length === 0) {
+        container.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:20px; color:#aaa;">No reports found.</td></tr>`;
+    } else {
+        data.reports.forEach(rep => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="padding: 10px; color: #fff; font-size: 0.75rem; border-bottom: 1px solid #333;">
+                    <strong style="color: #ff4757;">Target: ${rep.targetName}</strong><br>
+                    <small>By: ${rep.reportedBy}</small>
+                </td>
+                <td style="padding: 10px; color: #cbd5e1; font-size: 0.7rem; border-bottom: 1px solid #333;">
+                    ${rep.reason}
+                    <div style="margin-top:5px;">
+                        <button onclick="window.sendAdminAction('${rep.targetEmail}', '${rep.targetName}', 'ban')" style="background:red; color:white; border:none; padding:3px 8px; border-radius:4px; font-size:8px;">Ban User</button>
+                    </div>
+                </td>
+            `;
+            container.appendChild(tr);
+        });
+    }
+    document.getElementById("banListModal").classList.remove("hidden");
+    return;
+}
 
     // 🆕 Sidebar update logic
     if (data.type === "online-users-list") {
@@ -1081,6 +1113,36 @@ window.openProfile = function(name, avatar, role = "user", email = "") {
 
         // Profile ke andar se humne buttons hata diye hain kyunki aapko Manage Panel mein chahiye.
         adminActions.innerHTML = ""; 
+
+        // --- REPORT BUTTON LOGIC START ---
+        const reportBtn = document.createElement("button");
+        reportBtn.textContent = "🚩 Report User";
+        reportBtn.style.cssText = "background: #ef4444; color: white; border: none; padding: 10px; border-radius: 8px; margin-top: 15px; width: 100%; cursor: pointer; font-weight: bold;";
+
+        reportBtn.onclick = () => {
+            const reason = prompt(`Why are you reporting ${name}? (Min 10 characters)`);
+            if (reason) {
+                if (reason.length < 10) {
+                    alert("Reason is too short! Please provide more details.");
+                    return;
+                }
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: "report-user",
+                        targetEmail: email,
+                        targetName: name,
+                        reason: reason,
+                        reportedBy: window.currentUser
+                    }));
+                    alert("Report sent to admin!");
+                    modal.classList.add("hidden"); // Report ke baad modal band
+                }
+            }
+        };
+        adminActions.appendChild(reportBtn);
+        // --- REPORT BUTTON LOGIC END ---
+
+
         modal.classList.remove("hidden");
     }
 };
@@ -1153,6 +1215,9 @@ if (toggleBtn && sidebar) {
 const banModal = document.getElementById("banListModal");
 const openBanBtn = document.getElementById("openBanListBtn");
 const closeBanBtn = document.getElementById("closeBanList");
+const viewReportsBtn = document.getElementById("viewReportsBtn");
+const backBtn = document.getElementById("backToManageBtn"); // Naya Back Button
+const modalTitle = document.querySelector("#banListModal h3"); // Modal ki Heading
 const banContent = document.getElementById("banListContent");
 
 // 1. Modal kholte hi server se list maango
@@ -1175,7 +1240,15 @@ if(openBanBtn) {
 
 
 // 2. Modal Band karna
-if(closeBanBtn) closeBanBtn.onclick = () => banModal.classList.add("hidden");
+if(closeBanBtn) {
+    closeBanBtn.onclick = () => {
+        banModal.classList.add("hidden");
+        // Reset buttons for next time
+        if(backBtn) backBtn.classList.add("hidden");
+        if(viewReportsBtn) viewReportsBtn.classList.remove("hidden");
+        if(modalTitle) modalTitle.innerText = "Manage Users";
+    };
+}
 
 // Search filter logic
 const userSearchInput = document.getElementById("userSearch");
@@ -1191,6 +1264,37 @@ if (userSearchInput) {
             row.style.display = text.includes(term) ? "table-row" : "none";
         });
     });
+}
+
+if (viewReportsBtn) {
+    viewReportsBtn.onclick = () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            const container = document.getElementById("banListContent");
+            if(container) container.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:20px; color:#aaa;">Fetching reports...</td></tr>`;
+            
+            // Server se reports mangwao
+            ws.send(JSON.stringify({ type: "get-reports" }));
+
+            // UI Badlo: Report button chupao, Back button dikhao
+            viewReportsBtn.classList.add("hidden");
+            if(backBtn) backBtn.classList.remove("hidden");
+        }
+    };
+}
+if (backBtn) {
+    backBtn.onclick = () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            // Wapas members ki list maango
+            ws.send(JSON.stringify({ type: "get-all-members" }));
+            
+            // UI Reset: Back button chupao, Report button dikhao
+            backBtn.classList.add("hidden");
+            viewReportsBtn.classList.remove("hidden");
+            
+            // Heading wapas sahi karo
+            if(modalTitle) modalTitle.innerText = "Manage Users";
+        }
+    };
 }
 
 

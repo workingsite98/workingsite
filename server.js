@@ -126,6 +126,18 @@ const MutedUser = mongoose.model("MutedUser", new mongoose.Schema({
   mutedAt: { type: Date, default: Date.now }
 }));
 
+/* ================= REPORT MODEL ================= */
+const reportSchema = new mongoose.Schema({
+  reporterEmail: String,
+  reportedUser: String,
+  reportedEmail: String,
+  messageText: String,
+  messageId: String,
+  reason: String,
+  timestamp: { type: Date, default: Date.now }
+});
+const Report = mongoose.model("Report", reportSchema);
+
 
 /* ================= SESSION ================= */
 app.set("trust proxy", 1);
@@ -605,6 +617,20 @@ if (data.type === "admin-action") {
 
         return;
       }
+      /* ===== GET ALL REPORTS (FOR ADMIN DASHBOARD) ===== */
+      if (data.type === "get-reports") {
+        if (!req.user || req.user.role !== "admin") return;
+        try {
+          const reports = await Report.find().sort({ timestamp: -1 }).limit(50);
+          ws.send(JSON.stringify({
+            type: "all-reports-list",
+            reports: reports
+          }));
+        } catch (err) {
+          console.error("Fetch Reports Error:", err);
+        }
+        return;
+      }
 
 /* ===== CHAT ===== */
 if (data.type === "chat") {
@@ -808,6 +834,62 @@ if (!userEmail) {
         wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) client.send(updateData);
         });
+        return;
+      }
+
+
+      /* ===== REPORT MESSAGE ===== */
+      if (data.type === "report-msg") {
+        const { msgId, reason } = data;
+        const reporterEmail = req.user?.email;
+
+        if (!msgId || !reporterEmail) return;
+
+        try {
+          const targetMsg = await Message.findById(msgId);
+          if (!targetMsg) return;
+
+          // Database mein report save karo
+          const newReport = new Report({
+            reporterEmail: reporterEmail,
+            reportedUser: targetMsg.user,
+            reportedEmail: targetMsg.email,
+            messageText: targetMsg.text,
+            messageId: msgId,
+            reason: reason || "Inappropriate Content"
+          });
+          await newReport.save();
+
+          // Reporter ko confirmation bhejo
+          ws.send(JSON.stringify({ 
+            type: "success", 
+            message: "✅ Report submitted. Admins will review it." 
+          }));
+
+          // Online Admins ko real-time notification aur live data bhejo
+          wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+               const clientData = sockets.get(client);
+               if (onlineUsersData.get(clientData?.id)?.role === "admin") {
+                 
+                 // 1. Popup Alert
+                 client.send(JSON.stringify({ 
+                   type: "admin-alert", 
+                   text: `🚨 New Report: ${targetMsg.user} was reported!` 
+                 }));
+
+                 // 2. Live Dashboard Update (Naya row add karne ke liye)
+                 client.send(JSON.stringify({
+                   type: "new-live-report",
+                   report: newReport
+                 }));
+               }
+            }
+          });
+
+        } catch (err) {
+          console.error("Report Error:", err);
+        }
         return;
       }
 
