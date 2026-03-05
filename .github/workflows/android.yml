@@ -1,0 +1,30 @@
+name: Build Android APK
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Build APK
+        run: |
+          # Isse Google ke servers par APK banega
+          # Note: 'manifest.json' me tumhara Render URL hona chahiye
+          bubblewrap init --manifest=https://TUMHARA_RENDER_URL_DALO.onrender.com/manifest.json --noprompt
+          bubblewrap build --noprompt
