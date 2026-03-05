@@ -8,12 +8,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -24,7 +18,7 @@ jobs:
 
       - name: Build APK
         run: |
-          # Isse Google ke servers par APK banega
-          # Note: 'manifest.json' me tumhara Render URL hona chahiye
-          bubblewrap init --manifest=https://TUMHARA_RENDER_URL_DALO.onrender.com/manifest.json --noprompt
-          bubblewrap build --noprompt
+          # Isse saare configuration automatic ho jayenge
+          # 'yes' command automatic 'Y' press kar degi
+          yes | bubblewrap init --manifest=https://TUMHARA_RENDER_URL.onrender.com/manifest.json
+          yes | bubblewrap build
