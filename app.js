@@ -32,8 +32,10 @@ if(logoutBtn) {
     localStorage.removeItem("chatUser");
     window.currentUser = null;
     window.currentAvatar = null;
-    // Ab refresh nahi, seedha server ko request bhejenge logout ke liye
-    window.location.href = "/logout"; 
+    
+    // YAHAN BADLAV HAI: location.href ki jagah reload use karein
+    // Taaki app wapas landing page ya login screen par aa jaye, browser mein na jaye
+    window.location.replace("/"); 
   });
 }
 
@@ -113,7 +115,7 @@ let isTyping = false;
 
   /* ================= WEBSOCKET ================= */
   function connectWS() {
-    ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host);
+  ws = new WebSocket("wss://public-chat-server-6jrt.onrender.com");
     ws.onopen = () => {
       reconnectDelay = 2000;
       retryCount = 0;
